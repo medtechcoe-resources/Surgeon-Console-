@@ -1,10 +1,11 @@
 """
 Navigation tab bar — each tab has a QPainter-drawn icon + label.
 No emojis. Icons are 18×18 px rendered inline.
+Reduced to 4 tabs: Pre-Op, Live Video, Live Control, Settings.
 """
 import math
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QPushButton, QSizePolicy
-from PyQt6.QtCore import Qt, pyqtSignal, QRectF, QPointF
+from PyQt6.QtCore import Qt, pyqtSignal, QRectF, QPointF, QPropertyAnimation, QEasingCurve
 from PyQt6.QtGui import QPainter, QColor, QPen, QFont, QPolygonF
 
 from theme_manager import ThemeManager
@@ -13,7 +14,7 @@ from theme_manager import ThemeManager
 # ─── Icon painters (static functions, 18×18 canvas) ────────────────────────
 
 def _draw_clipboard(p, cx, cy, c):
-    """Pre-op: clipboard."""
+    """Pre-op: clipboard / patient file."""
     p.setPen(QPen(c, 1.5))
     p.setBrush(Qt.BrushStyle.NoBrush)
     p.drawRoundedRect(int(cx - 7), int(cy - 8), 14, 16, 2, 2)
@@ -25,7 +26,7 @@ def _draw_clipboard(p, cx, cy, c):
 
 
 def _draw_camera(p, cx, cy, c):
-    """Live Video: camera."""
+    """Live Video: endoscope / camera."""
     p.setPen(QPen(c, 1.5))
     p.setBrush(Qt.BrushStyle.NoBrush)
     p.drawRoundedRect(int(cx - 8), int(cy - 5), 16, 11, 2, 2)
@@ -35,49 +36,12 @@ def _draw_camera(p, cx, cy, c):
 
 
 def _draw_joystick(p, cx, cy, c):
-    """Live Control: robot/joystick."""
+    """Live Control: robotic arm / joystick."""
     p.setPen(QPen(c, 1.5))
     p.setBrush(Qt.BrushStyle.NoBrush)
     p.drawEllipse(int(cx - 7), int(cy + 1), 14, 7)
     p.drawLine(int(cx), int(cy + 1), int(cx), int(cy - 6))
     p.drawEllipse(int(cx - 3), int(cy - 9), 6, 6)
-
-
-def _draw_lens(p, cx, cy, c):
-    """End-Effector: lens/aperture."""
-    p.setPen(QPen(c, 1.5))
-    p.setBrush(Qt.BrushStyle.NoBrush)
-    p.drawEllipse(int(cx - 8), int(cy - 8), 16, 16)
-    p.drawEllipse(int(cx - 4), int(cy - 4), 8, 8)
-    p.drawEllipse(int(cx - 1), int(cy - 1), 2, 2)
-
-
-def _draw_chart(p, cx, cy, c):
-    """Post-op: bar chart."""
-    p.setPen(QPen(c, 1.5))
-    p.setBrush(c)
-    p.drawRect(int(cx - 8), int(cy + 2), 4, 6)
-    p.drawRect(int(cx - 2), int(cy - 2), 4, 10)
-    p.drawRect(int(cx + 4), int(cy - 6), 4, 14)
-    p.setPen(QPen(c, 1))
-    p.drawLine(int(cx - 9), int(cy + 8), int(cx + 9), int(cy + 8))
-
-
-def _draw_waveform(p, cx, cy, c):
-    """Telemetry: ECG/waveform."""
-    p.setPen(QPen(c, 1.8, Qt.PenStyle.SolidLine,
-                  Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
-    pts = [
-        QPointF(cx - 9, cy),
-        QPointF(cx - 5, cy),
-        QPointF(cx - 3, cy - 7),
-        QPointF(cx - 1, cy + 7),
-        QPointF(cx + 1, cy - 4),
-        QPointF(cx + 3, cy),
-        QPointF(cx + 9, cy),
-    ]
-    for i in range(len(pts) - 1):
-        p.drawLine(pts[i], pts[i + 1])
 
 
 def _draw_gear(p, cx, cy, c):
@@ -96,17 +60,6 @@ def _draw_gear(p, cx, cy, c):
         p.drawLine(int(x1), int(y1), int(x2), int(y2))
 
 
-_ICON_FUNCS = [
-    _draw_clipboard,
-    _draw_camera,
-    _draw_joystick,
-    _draw_lens,
-    _draw_chart,
-    _draw_waveform,
-    _draw_gear,
-]
-
-
 # ─── Icon Tab Button ────────────────────────────────────────────────────────
 
 class _IconTabButton(QPushButton):
@@ -121,6 +74,7 @@ class _IconTabButton(QPushButton):
         self._icon_fn = icon_fn
         self._label = label
         self._active = False
+        self._hover = False
 
         # Calculate width from text
         self.setMinimumWidth(120)
@@ -139,6 +93,16 @@ class _IconTabButton(QPushButton):
         self.style().polish(self)
         self.update()
 
+    def enterEvent(self, event):
+        self._hover = True
+        self.update()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self._hover = False
+        self.update()
+        super().leaveEvent(event)
+
     def paintEvent(self, event):
         # Draw the QSS base (background, border-bottom indicator)
         super().paintEvent(event)
@@ -150,6 +114,9 @@ class _IconTabButton(QPushButton):
         if self._active:
             icon_color = QColor(tm.color("accent_blue"))
             text_color = QColor(tm.color("fg_primary"))
+        elif self._hover:
+            icon_color = QColor(tm.color("fg_secondary"))
+            text_color = QColor(tm.color("fg_secondary"))
         else:
             icon_color = QColor(tm.color("fg_muted"))
             text_color = QColor(tm.color("fg_muted"))
@@ -179,13 +146,10 @@ class NavBar(QWidget):
     tab_changed = pyqtSignal(int)
 
     TABS = [
-        ("Pre-Operation",           _draw_clipboard),
-        ("Live Video",              _draw_camera),
-        ("Live Control",            _draw_joystick),
-        ("End-Effector Camera",     _draw_lens),
-        ("Post-Operative Analytics",_draw_chart),
-        ("Telemetry",               _draw_waveform),
-        ("Settings",                _draw_gear),
+        ("Pre-Op",       _draw_clipboard),
+        ("Live Video",   _draw_camera),
+        ("Live Control", _draw_joystick),
+        ("Settings",     _draw_gear),
     ]
 
     def __init__(self, parent=None):

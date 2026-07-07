@@ -633,3 +633,183 @@ QToolTip {
     padding: 8px;
     font-size: 13px;
 }
+
+/* ---------- Compact Action Buttons (Live Video) ---------- */
+QPushButton[class="CompactAction"] {
+    background-color: #171C22;
+    border: 1px solid #2D3748;
+    border-radius: 8px;
+    color: #B5BEC8;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 8px 10px;
+    min-height: 34px;
+}
+QPushButton[class="CompactAction"]:hover {
+    border-color: #0095FF;
+    color: #F5F7FA;
+    background-color: #1C2333;
+}
+QPushButton[class="CompactAction"][active="true"] {
+    background-color: #0D2818;
+    border-color: #10B981;
+    color: #10B981;
+}
+
+/* ---------- Pause / Play Overlay Button ---------- */
+QPushButton#PauseOverlay {
+    background-color: rgba(13, 17, 23, 160);
+    border: 1px solid rgba(45, 55, 72, 180);
+    border-radius: 8px;
+    color: #F5F7FA;
+    font-size: 16px;
+    font-weight: 700;
+    min-width: 40px;
+    min-height: 40px;
+    max-width: 40px;
+    max-height: 40px;
+}
+QPushButton#PauseOverlay:hover {
+    background-color: rgba(28, 35, 51, 200);
+    border-color: #0095FF;
+}
+
+/* ---------- Detection Metric Cards ---------- */
+#MetricSummaryCard {
+    background-color: #171C22;
+    border: none;
+    border-left: 3px solid #0095FF;
+    border-radius: 8px;
+}
+#MetricSummaryTitle {
+    color: #6B7B8D;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+#MetricSummaryValue {
+    color: #F5F7FA;
+    font-size: 22px;
+    font-weight: 700;
+    font-family: "JetBrains Mono", "Consolas", monospace;
+}
+#MetricSummarySub {
+    color: #4A5568;
+    font-size: 10px;
+    font-weight: 500;
+}
+
+/* ---------- Message Center ---------- */
+#MessageCard {
+    background-color: #171C22;
+    border: none;
+    border-radius: 10px;
+}
+#MessageCardTitle {
+    color: #B5BEC8;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+}
+#MessageItem {
+    background-color: #131820;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 12px;
+}
+#MessageItemLatest {
+    background-color: #0D1B2A;
+    border: 1px solid #0095FF;
+    border-radius: 6px;
+    padding: 8px 12px;
+}
+#MessageText {
+    color: #B5BEC8;
+    font-size: 12px;
+    font-weight: 500;
+}
+#MessageTextLatest {
+    color: #F5F7FA;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* ---------- System Status Card ---------- */
+#SystemStatusCard {
+    background-color: #171C22;
+    border: none;
+    border-radius: 10px;
+}
+#SystemStatusLabel {
+    color: #6B7B8D;
+    font-size: 11px;
+    font-weight: 600;
+}
+#SystemStatusValue {
+    font-size: 12px;
+    font-weight: 700;
+}
+
+/* ---------- Surgery Notes ---------- */
+QTextEdit#SurgeryNotes {
+    background-color: #131820;
+    color: #E6EDF3;
+    border: 1px solid #2D3748;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 13px;
+    font-family: "Inter", "Segoe UI", sans-serif;
+    selection-background-color: #0095FF;
+}
+QTextEdit#SurgeryNotes:focus {
+    border-color: #0095FF;
+}
+
+/* ---------- Sidebar Section Title (Larger) ---------- */
+#SidebarSectionTitle {
+    color: #B5BEC8;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+}
+
+/* ---------- Foot Pedal Flat Buttons ---------- */
+QPushButton[class="FlatPedal"] {
+    background-color: #171C22;
+    border: 1px solid #2D3748;
+    border-radius: 8px;
+    color: #B5BEC8;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 10px 16px;
+    min-height: 40px;
+    letter-spacing: 0.5px;
+}
+QPushButton[class="FlatPedal"]:hover {
+    border-color: #4A5568;
+    color: #F5F7FA;
+    background-color: #1C2333;
+}
+QPushButton[class="FlatPedal"][active="true"] {
+    background-color: #0D2818;
+    border-color: #10B981;
+    color: #10B981;
+}
+QPushButton[class="FlatPedalCoag"] {
+    background-color: #171C22;
+    border: 1px solid #2D3748;
+    border-radius: 8px;
+    color: #F59E0B;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 10px 16px;
+    min-height: 40px;
+}
+QPushButton[class="FlatPedalCoag"]:hover {
+    border-color: #F59E0B;
+    background-color: #1E1600;
+}
+QPushButton[class="FlatPedalCoag"][active="true"] {
+    background-color: #F59E0B;
+    color: #0D1117;
+}

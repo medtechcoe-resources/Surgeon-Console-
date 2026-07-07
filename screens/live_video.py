@@ -1,27 +1,25 @@
 """
 Live Video Tab — Redesigned for 3440×1440 ultrawide.
-Layout: Left panel 18% | Center video 62% | Right panel 20%
+Layout: Left panel 18% | Center video 52% | Right panel 30% (split into upper/lower)
 
 Left panel:
-  - Detection Summary (6 info rows: Instrument, Confidence, Tracking ID,
-    Detection Status, Frame Count, Detection Time)
-  - Instrument Controls (4 sliders: Jaw / Pitch / Yaw / Roll for Maryland Bipolar)
-  - Pipeline Controls (Load Video, YOLO Detection, Vitals Overlay)
+  - Detection Summary (6 info rows)
+  - Instrument Controls (4 sliders)
+  - Pipeline Controls (Load Video, YOLO, Vitals Overlay)
 
-Center: Endoscopic video feed with zoom controls
+Center: Endoscopic video feed with zoom + floating pause/play
 
-Right panel:
-  - Instruments list (name + arm + stats)
-  - Arm diagram
-  - Action buttons (CLUTCH / COAG / CUT) — compact, color-coded
+Right panel upper: Compact action cards + Detection metric summary cards
+Right panel lower: Foot pedal controls (flat, no emojis) + Message center
 """
 import math
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                              QFrame, QPushButton, QSlider, QSizePolicy,
-                             QFileDialog, QScrollArea, QSpacerItem)
+                             QFileDialog, QScrollArea, QSpacerItem,
+                             QGridLayout)
 from PyQt6.QtCore import Qt, QTimer, QPointF
 from PyQt6.QtGui import (QPainter, QColor, QRadialGradient, QPen, QFont,
-                          QPixmap, QImage, QPolygonF)
+                          QPixmap, QImage, QPolygonF, QTransform)
 from widgets.card import MetricCard, PanelFrame
 from theme_manager import ThemeManager
 from yolo_pipeline import YoloPipeline
@@ -76,7 +74,7 @@ class _SliderRow(QWidget):
     """Label + QSlider + live value display."""
 
     def __init__(self, label: str, min_val: int, max_val: int, default: int = 0,
-                 unit: str = "°", parent=None):
+                 unit: str = "\u00B0", parent=None):
         super().__init__(parent)
         self._unit = unit
 
@@ -123,15 +121,15 @@ class _InstrumentCard(QFrame):
         color = INSTRUMENT_COLORS.get(number, "#0095FF")
 
         lay = QHBoxLayout(self)
-        lay.setContentsMargins(14, 12, 14, 12)
-        lay.setSpacing(12)
+        lay.setContentsMargins(14, 10, 14, 10)
+        lay.setSpacing(10)
 
         badge = QLabel(str(number))
-        badge.setFixedSize(28, 28)
+        badge.setFixedSize(24, 24)
         badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
         badge.setStyleSheet(
-            f"background-color:{color}; color:#0D1117; border-radius:14px; "
-            f"font-size:13px; font-weight:800;"
+            f"background-color:{color}; color:#0D1117; border-radius:12px; "
+            f"font-size:12px; font-weight:800;"
         )
         lay.addWidget(badge)
 
@@ -139,12 +137,12 @@ class _InstrumentCard(QFrame):
         text_box.setSpacing(2)
         n = QLabel(name)
         n.setStyleSheet(
-            "color:#F5F7FA; font-size:13px; font-weight:700;"
+            "color:#F5F7FA; font-size:12px; font-weight:700;"
         )
         n.setWordWrap(True)
         a = QLabel(arm)
         a.setStyleSheet(
-            f"color:{color}; font-size:11px; font-weight:700; letter-spacing:0.5px;"
+            f"color:{color}; font-size:10px; font-weight:700; letter-spacing:0.5px;"
         )
         text_box.addWidget(n)
         text_box.addWidget(a)
@@ -157,7 +155,7 @@ class _InstrumentCard(QFrame):
             sl.setObjectName("DetectRowLabel")
             sv = QLabel(stat_val)
             sv.setStyleSheet(
-                f"color:{color}; font-size:14px; font-weight:700; "
+                f"color:{color}; font-size:13px; font-weight:700; "
                 f"font-family:'JetBrains Mono','Consolas',monospace;"
             )
             stat.addWidget(sl)
@@ -173,7 +171,7 @@ class _ArmDiagram(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("Card")
-        self.setFixedHeight(160)
+        self.setFixedHeight(140)
         tm = ThemeManager.instance()
         tm.theme_changed.connect(lambda _: self.update())
 
@@ -214,7 +212,7 @@ class _ArmDiagram(QFrame):
 
 
 # ═══════════════════════════════════════════════════════════════════
-#  VIDEO FEED CANVAS
+#  VIDEO FEED CANVAS (with zoom & pan)
 # ═══════════════════════════════════════════════════════════════════
 
 class _FeedCanvas(QFrame):
@@ -223,6 +221,11 @@ class _FeedCanvas(QFrame):
         self.setMinimumSize(640, 360)
         self.setFrameShape(QFrame.Shape.NoFrame)
         self._pixmap = None
+        self._zoom = 1.0
+        self._pan_offset = QPointF(0, 0)
+        self._drag_start = None
+        self._drag_offset_start = QPointF(0, 0)
+        self.setMouseTracking(True)
         tm = ThemeManager.instance()
         tm.theme_changed.connect(lambda _: self.update())
 
@@ -234,20 +237,76 @@ class _FeedCanvas(QFrame):
         self._pixmap = None
         self.update()
 
+    def set_zoom(self, zoom):
+        self._zoom = max(1.0, min(3.0, zoom))
+        # Clamp pan offset when zoom changes
+        self._clamp_pan()
+        self.update()
+
+    def _clamp_pan(self):
+        if self._zoom <= 1.0:
+            self._pan_offset = QPointF(0, 0)
+            return
+        w, h = self.width(), self.height()
+        max_x = (self._zoom - 1.0) * w / (2.0 * self._zoom)
+        max_y = (self._zoom - 1.0) * h / (2.0 * self._zoom)
+        px = max(-max_x, min(max_x, self._pan_offset.x()))
+        py = max(-max_y, min(max_y, self._pan_offset.y()))
+        self._pan_offset = QPointF(px, py)
+
+    def wheelEvent(self, event):
+        delta = event.angleDelta().y()
+        if delta > 0:
+            self._zoom = min(3.0, self._zoom + 0.15)
+        else:
+            self._zoom = max(1.0, self._zoom - 0.15)
+        self._clamp_pan()
+        self.update()
+        # Propagate zoom to parent
+        parent = self.parent()
+        while parent:
+            if hasattr(parent, '_sync_zoom_from_canvas'):
+                parent._sync_zoom_from_canvas(self._zoom)
+                break
+            parent = parent.parent()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton and self._zoom > 1.0:
+            self._drag_start = event.position()
+            self._drag_offset_start = QPointF(self._pan_offset)
+
+    def mouseMoveEvent(self, event):
+        if self._drag_start is not None:
+            delta = event.position() - self._drag_start
+            self._pan_offset = QPointF(
+                self._drag_offset_start.x() + delta.x() / self._zoom,
+                self._drag_offset_start.y() + delta.y() / self._zoom,
+            )
+            self._clamp_pan()
+            self.update()
+
+    def mouseReleaseEvent(self, event):
+        self._drag_start = None
+
     def paintEvent(self, event):
         tm = ThemeManager.instance()
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         w, h = self.width(), self.height()
 
         if self._pixmap and not self._pixmap.isNull():
+            # Scale the pixmap to fill the widget
             scaled = self._pixmap.scaled(
-                w, h,
+                int(w * self._zoom), int(h * self._zoom),
                 Qt.AspectRatioMode.KeepAspectRatioByExpanding,
                 Qt.TransformationMode.SmoothTransformation
             )
-            sx = (scaled.width() - w) // 2
-            sy = (scaled.height() - h) // 2
+            # Calculate center offset with pan
+            sx = (scaled.width() - w) // 2 - int(self._pan_offset.x() * self._zoom)
+            sy = (scaled.height() - h) // 2 - int(self._pan_offset.y() * self._zoom)
+            sx = max(0, min(scaled.width() - w, sx))
+            sy = max(0, min(scaled.height() - h, sy))
             p.drawPixmap(0, 0, scaled, sx, sy, w, h)
         else:
             if tm.is_dark():
@@ -290,6 +349,109 @@ class _PaintedDot(QWidget):
 
 
 # ═══════════════════════════════════════════════════════════════════
+#  DETECTION METRIC SUMMARY CARD
+# ═══════════════════════════════════════════════════════════════════
+
+class _MetricSummary(QFrame):
+    def __init__(self, title, value="--", sub="", parent=None):
+        super().__init__(parent)
+        self.setObjectName("MetricSummaryCard")
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(12, 10, 12, 10)
+        lay.setSpacing(2)
+        t = QLabel(title.upper())
+        t.setObjectName("MetricSummaryTitle")
+        self._val = QLabel(value)
+        self._val.setObjectName("MetricSummaryValue")
+        self._sub = QLabel(sub)
+        self._sub.setObjectName("MetricSummarySub")
+        lay.addWidget(t)
+        lay.addWidget(self._val)
+        lay.addWidget(self._sub)
+
+    def set_value(self, v):
+        self._val.setText(str(v))
+
+    def set_sub(self, s):
+        self._sub.setText(s)
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  MESSAGE CENTER
+# ═══════════════════════════════════════════════════════════════════
+
+class _MessageCenter(QFrame):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("MessageCard")
+        self._messages = []
+
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(14, 12, 14, 12)
+        lay.setSpacing(6)
+
+        title = QLabel("MESSAGES")
+        title.setObjectName("MessageCardTitle")
+        lay.addWidget(title)
+
+        self._scroll = QScrollArea()
+        self._scroll.setWidgetResizable(True)
+        self._scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self._scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+        self._list_widget = QWidget()
+        self._list_layout = QVBoxLayout(self._list_widget)
+        self._list_layout.setContentsMargins(0, 0, 0, 0)
+        self._list_layout.setSpacing(4)
+        self._list_layout.addStretch()
+        self._scroll.setWidget(self._list_widget)
+        lay.addWidget(self._scroll, 1)
+
+        # Add default messages
+        defaults = [
+            "System initialized",
+            "EtherCAT master link established",
+            "Kinematics calibrated — RMS 0.42 mm",
+            "End-effector connected: Maryland",
+            "Robot ready",
+        ]
+        for msg in defaults:
+            self.add_message(msg)
+
+    def add_message(self, text):
+        self._messages.append(text)
+        # Un-highlight previous latest
+        count = self._list_layout.count()
+        for i in range(count):
+            item = self._list_layout.itemAt(i)
+            if item and item.widget():
+                item.widget().setObjectName("MessageItem")
+                for child in item.widget().findChildren(QLabel):
+                    child.setObjectName("MessageText")
+                item.widget().style().unpolish(item.widget())
+                item.widget().style().polish(item.widget())
+
+        # Create new message item
+        msg_frame = QFrame()
+        msg_frame.setObjectName("MessageItemLatest")
+        msg_lay = QHBoxLayout(msg_frame)
+        msg_lay.setContentsMargins(10, 6, 10, 6)
+        msg_lay.setSpacing(0)
+        msg_label = QLabel(text)
+        msg_label.setObjectName("MessageTextLatest")
+        msg_label.setWordWrap(True)
+        msg_lay.addWidget(msg_label)
+
+        # Insert before the stretch
+        self._list_layout.insertWidget(self._list_layout.count() - 1, msg_frame)
+
+        # Auto-scroll to bottom
+        QTimer.singleShot(50, lambda: self._scroll.verticalScrollBar().setValue(
+            self._scroll.verticalScrollBar().maximum()
+        ))
+
+
+# ═══════════════════════════════════════════════════════════════════
 #  SECTION SEPARATOR
 # ═══════════════════════════════════════════════════════════════════
 
@@ -327,6 +489,7 @@ class LiveVideoScreen(QWidget):
 
         self._yolo_enabled = False
         self._vitals_enabled = False
+        self._paused = False
         self._frame_count = 0
         self._detect_time_ms = 0.0
 
@@ -382,10 +545,10 @@ class LiveVideoScreen(QWidget):
         slider_layout.setContentsMargins(16, 14, 16, 14)
         slider_layout.setSpacing(6)
 
-        self._s_jaw   = _SliderRow("Jaw",   0,    100,   0, "°")
-        self._s_pitch = _SliderRow("Pitch", -45,  45,    0, "°")
-        self._s_yaw   = _SliderRow("Yaw",   -45,  45,    0, "°")
-        self._s_roll  = _SliderRow("Roll",  -180, 180,   0, "°")
+        self._s_jaw   = _SliderRow("Jaw",   0,    100,   0, "\u00B0")
+        self._s_pitch = _SliderRow("Pitch", -45,  45,    0, "\u00B0")
+        self._s_yaw   = _SliderRow("Yaw",   -45,  45,    0, "\u00B0")
+        self._s_roll  = _SliderRow("Roll",  -180, 180,   0, "\u00B0")
 
         for sr in (self._s_jaw, self._s_pitch, self._s_yaw, self._s_roll):
             slider_layout.addWidget(sr)
@@ -424,7 +587,7 @@ class LiveVideoScreen(QWidget):
         outer.addWidget(left_scroll, 18)
 
         # ══════════════════════════════════════════
-        #  CENTER PANEL (~62%) — Video Feed
+        #  CENTER PANEL (~52%) — Video Feed
         # ══════════════════════════════════════════
         center = QVBoxLayout()
         center.setSpacing(0)
@@ -437,7 +600,7 @@ class LiveVideoScreen(QWidget):
         hb_lay.setContentsMargins(20, 10, 20, 10)
         hb_lay.setSpacing(16)
 
-        feed_title = QLabel("ENDOSCOPIC FEED  ·  CH-01")
+        feed_title = QLabel("ENDOSCOPIC FEED  \u00B7  CH-01")
         feed_title.setObjectName("PanelTitle")
         feed_title.setStyleSheet("font-size:16px;")
 
@@ -446,7 +609,7 @@ class LiveVideoScreen(QWidget):
         self.rec_label.setStyleSheet(
             "color:#EF4444; font-size:11px; font-weight:700;"
         )
-        self.meta_label = QLabel("1920×1080  ·  H.265")
+        self.meta_label = QLabel("1920\u00D71080  \u00B7  H.265")
         self.meta_label.setObjectName("DetectRowLabel")
 
         hb_lay.addWidget(feed_title)
@@ -458,13 +621,31 @@ class LiveVideoScreen(QWidget):
         hb_lay.addWidget(self.meta_label)
         center.addWidget(header_bar)
 
-        # Video canvas
+        # Video canvas container (for floating overlay button)
+        self._canvas_container = QWidget()
+        self._canvas_container.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
+        container_lay = QVBoxLayout(self._canvas_container)
+        container_lay.setContentsMargins(0, 0, 0, 0)
+        container_lay.setSpacing(0)
+
         self.canvas = _FeedCanvas()
-        self.canvas.setMinimumHeight(480)
+        self.canvas.setMinimumHeight(400)
         self.canvas.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
         )
-        center.addWidget(self.canvas, 1)
+        container_lay.addWidget(self.canvas)
+
+        # Floating pause/play button
+        self.btn_pause = QPushButton("\u275A\u275A")
+        self.btn_pause.setObjectName("PauseOverlay")
+        self.btn_pause.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_pause.clicked.connect(self._toggle_pause)
+        self.btn_pause.setParent(self._canvas_container)
+        self.btn_pause.raise_()
+
+        center.addWidget(self._canvas_container, 1)
 
         # Camera control bar
         ctrl_bar = QHBoxLayout()
@@ -479,7 +660,7 @@ class LiveVideoScreen(QWidget):
 
         ctrl_bar.addStretch()
 
-        self.btn_zoom_out = QPushButton("−")
+        self.btn_zoom_out = QPushButton("\u2212")
         self.btn_zoom_out.setProperty("class", "GridButton")
         self.btn_zoom_out.setFixedSize(34, 34)
         self.btn_zoom_out.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -491,7 +672,7 @@ class LiveVideoScreen(QWidget):
         self.zoom_slider.setFixedWidth(180)
         self.zoom_slider.valueChanged.connect(self._on_zoom_slider)
 
-        self.zoom_value_lbl = QLabel("1.0×")
+        self.zoom_value_lbl = QLabel("1.0\u00D7")
         self.zoom_value_lbl.setObjectName("SliderValue")
         self.zoom_value_lbl.setFixedWidth(48)
         self.zoom_value_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -521,7 +702,7 @@ class LiveVideoScreen(QWidget):
         bottom_bar.setContentsMargins(20, 0, 20, 10)
         self.frame_lbl = QLabel("FRAME 0000000")
         self.time_lbl = QLabel("T+ 00:00:00")
-        self.roi_lbl = QLabel("ZOOM 1.0×  ·  ROI 100%")
+        self.roi_lbl = QLabel("ZOOM 1.0\u00D7  \u00B7  ROI 100%")
         for lbl in (self.frame_lbl, self.time_lbl, self.roi_lbl):
             lbl.setObjectName("DetectRowLabel")
             lbl.setStyleSheet(
@@ -534,22 +715,37 @@ class LiveVideoScreen(QWidget):
         center_widget = QWidget()
         center_widget.setLayout(center)
         center_widget.setObjectName("Card")
-        outer.addWidget(center_widget, 62)
+        outer.addWidget(center_widget, 52)
 
         # ══════════════════════════════════════════
-        #  RIGHT PANEL (~20%)
+        #  RIGHT PANEL (~30%) — Split Upper/Lower
         # ══════════════════════════════════════════
         right_scroll = QScrollArea()
         right_scroll.setWidgetResizable(True)
         right_scroll.setFrameShape(QFrame.Shape.NoFrame)
         right_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        right_scroll.setMinimumWidth(260)
-        right_scroll.setMaximumWidth(340)
+        right_scroll.setMinimumWidth(300)
+        right_scroll.setMaximumWidth(420)
 
         right_widget = QWidget()
         right = QVBoxLayout(right_widget)
         right.setContentsMargins(8, 0, 0, 0)
         right.setSpacing(10)
+
+        # ── Right Panel 1: Detection Metrics + Instruments ──
+        right.addWidget(_section_label("DETECTION METRICS"))
+
+        metrics_grid = QGridLayout()
+        metrics_grid.setSpacing(8)
+        self._m_objects = _MetricSummary("Objects", "0", "detected")
+        self._m_conf    = _MetricSummary("Confidence", "--", "mean %")
+        self._m_fps     = _MetricSummary("Frame Rate", "0", "FPS")
+        self._m_infer   = _MetricSummary("Inference", "--", "ms")
+        metrics_grid.addWidget(self._m_objects, 0, 0)
+        metrics_grid.addWidget(self._m_conf, 0, 1)
+        metrics_grid.addWidget(self._m_fps, 1, 0)
+        metrics_grid.addWidget(self._m_infer, 1, 1)
+        right.addLayout(metrics_grid)
 
         right.addWidget(_section_label("INSTRUMENTS"))
 
@@ -568,44 +764,48 @@ class LiveVideoScreen(QWidget):
 
         right.addWidget(_ArmDiagram())
 
-        # ─ Action Buttons ─
+        # ── Right Panel 2: Foot Pedals + Messages ──
         right.addWidget(_section_label("FOOT PEDAL CONTROLS"))
 
-        action_card = QFrame()
-        action_card.setObjectName("Card")
-        ac_lay = QVBoxLayout(action_card)
-        ac_lay.setContentsMargins(14, 14, 14, 14)
-        ac_lay.setSpacing(8)
+        pedal_card = QFrame()
+        pedal_card.setObjectName("Card")
+        pc_lay = QVBoxLayout(pedal_card)
+        pc_lay.setContentsMargins(14, 12, 14, 12)
+        pc_lay.setSpacing(8)
 
-        self.btn_clutch = QPushButton("⬛  CLUTCH")
-        self.btn_clutch.setProperty("class", "ClutchButton")
+        self.btn_clutch = QPushButton("CLUTCH")
+        self.btn_clutch.setProperty("class", "FlatPedal")
         self.btn_clutch.setProperty("active", "true")
         self.btn_clutch.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_clutch.clicked.connect(lambda: self._toggle_action(self.btn_clutch))
-        ac_lay.addWidget(self.btn_clutch)
+        pc_lay.addWidget(self.btn_clutch)
 
         coag_cut = QHBoxLayout()
         coag_cut.setSpacing(8)
 
-        self.btn_coag = QPushButton("🔥  COAG")
-        self.btn_coag.setProperty("class", "CoagButton")
+        self.btn_coag = QPushButton("COAG")
+        self.btn_coag.setProperty("class", "FlatPedalCoag")
         self.btn_coag.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_coag.clicked.connect(lambda: self._toggle_action(self.btn_coag))
 
-        self.btn_cut = QPushButton("✂  CUT")
-        self.btn_cut.setProperty("class", "CutButton")
+        self.btn_cut = QPushButton("CUT")
+        self.btn_cut.setProperty("class", "FlatPedal")
         self.btn_cut.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_cut.clicked.connect(lambda: self._toggle_action(self.btn_cut))
 
         coag_cut.addWidget(self.btn_coag)
         coag_cut.addWidget(self.btn_cut)
-        ac_lay.addLayout(coag_cut)
+        pc_lay.addLayout(coag_cut)
 
-        right.addWidget(action_card)
-        right.addStretch()
+        right.addWidget(pedal_card)
+
+        # ── Message Center ──
+        self.message_center = _MessageCenter()
+        self.message_center.setMinimumHeight(160)
+        right.addWidget(self.message_center, 1)
 
         right_scroll.setWidget(right_widget)
-        outer.addWidget(right_scroll, 20)
+        outer.addWidget(right_scroll, 30)
 
         # REC blink
         self._rec_visible = True
@@ -613,16 +813,33 @@ class LiveVideoScreen(QWidget):
         self._rec_timer.timeout.connect(self._blink_rec)
         self._rec_timer.start(800)
 
+    # ── Resize: reposition floating pause button ──────────────────
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._reposition_pause_btn()
+
+    def _reposition_pause_btn(self):
+        if hasattr(self, 'btn_pause') and hasattr(self, '_canvas_container'):
+            cw = self._canvas_container.width()
+            self.btn_pause.move(cw - 56, 12)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        QTimer.singleShot(50, self._reposition_pause_btn)
+
     # ── Frame / Stats Callbacks ────────────────────────────────────────
 
     def _on_frame(self, qimage):
+        if self._paused:
+            return
         self.canvas.set_frame(qimage)
         info = self.pipeline.get_video_info()
         self._frame_count = info.get("current_frame", self._frame_count)
         self.frame_lbl.setText(f"FRAME {self._frame_count:07d}")
         if info.get("width", 0) > 0:
             self.meta_label.setText(
-                f"{info['width']}×{info['height']}  ·  H.265"
+                f"{info['width']}\u00D7{info['height']}  \u00B7  H.265"
             )
 
     def _on_stats(self, stats):
@@ -648,8 +865,17 @@ class LiveVideoScreen(QWidget):
             f"{stats.inference_ms:.1f} ms" if stats.inference_ms > 0 else "--"
         )
 
+        # Update metric summary cards
+        self._m_objects.set_value(str(stats.objects_detected))
+        self._m_conf.set_value(f"{conf:.0f}%" if conf > 0 else "--")
+        self._m_fps.set_value(f"{stats.fps:.1f}" if stats.fps > 0 else "0")
+        self._m_infer.set_value(
+            f"{stats.inference_ms:.1f}" if stats.inference_ms > 0 else "--"
+        )
+
     def _on_status(self, msg):
         self.status_label.setText(msg)
+        self.message_center.add_message(msg)
 
     # ── Button Handlers ───────────────────────────────────────────────
 
@@ -682,6 +908,14 @@ class LiveVideoScreen(QWidget):
         self.btn_vitals.style().unpolish(self.btn_vitals)
         self.btn_vitals.style().polish(self.btn_vitals)
 
+    def _toggle_pause(self):
+        self._paused = not self._paused
+        self.btn_pause.setText("\u25B6" if self._paused else "\u275A\u275A")
+        if self._paused:
+            self.message_center.add_message("Video paused")
+        else:
+            self.message_center.add_message("Video resumed")
+
     def _toggle_action(self, btn):
         current = btn.property("active") == "true"
         btn.setProperty("active", "false" if current else "true")
@@ -689,6 +923,11 @@ class LiveVideoScreen(QWidget):
         btn.style().polish(btn)
 
     # ── Zoom ──────────────────────────────────────────────────────────
+
+    def _sync_zoom_from_canvas(self, zoom_val):
+        """Called by the canvas when mouse wheel zoom occurs."""
+        self.zoom = zoom_val
+        self._apply_zoom()
 
     def _zoom_in(self):
         self.zoom = min(self.ZOOM_MAX, round(self.zoom + self.ZOOM_STEP, 2))
@@ -700,22 +939,25 @@ class LiveVideoScreen(QWidget):
 
     def _zoom_home(self):
         self.zoom = 1.0
+        self.canvas._pan_offset = QPointF(0, 0)
         self._apply_zoom()
 
     def _on_zoom_slider(self, value):
         self.zoom = value / 10.0
+        self.canvas.set_zoom(self.zoom)
         self._update_zoom_ui()
 
     def _apply_zoom(self):
+        self.canvas.set_zoom(self.zoom)
         self.zoom_slider.blockSignals(True)
         self.zoom_slider.setValue(int(self.zoom * 10))
         self.zoom_slider.blockSignals(False)
         self._update_zoom_ui()
 
     def _update_zoom_ui(self):
-        self.zoom_value_lbl.setText(f"{self.zoom:.1f}×")
+        self.zoom_value_lbl.setText(f"{self.zoom:.1f}\u00D7")
         roi = round(100 / self.zoom)
-        self.roi_lbl.setText(f"ZOOM {self.zoom:.1f}×  ·  ROI {roi}%")
+        self.roi_lbl.setText(f"ZOOM {self.zoom:.1f}\u00D7  \u00B7  ROI {roi}%")
         self.btn_zoom_out.setEnabled(self.zoom > self.ZOOM_MIN)
         self.btn_zoom_in.setEnabled(self.zoom < self.ZOOM_MAX)
 

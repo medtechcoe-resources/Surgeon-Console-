@@ -17,9 +17,6 @@ from widgets.status_bar import StatusBar
 from screens.preop_planning import PreopPlanningScreen
 from screens.live_video import LiveVideoScreen
 from screens.live_control import LiveControlScreen
-from screens.end_effector import EndEffectorScreen
-from screens.postop_analytics import PostopAnalyticsScreen
-from screens.telemetry import TelemetryScreen
 from screens.settings import SettingsScreen
 
 
@@ -56,13 +53,10 @@ class AetherConsole(QMainWindow):
         self.preop = PreopPlanningScreen()
         self.live_video = LiveVideoScreen()
         self.live_control = LiveControlScreen()
-        self.end_effector = EndEffectorScreen()
-        self.postop = PostopAnalyticsScreen()
-        self.telemetry = TelemetryScreen()
         self.settings = SettingsScreen()
 
         for screen in (self.preop, self.live_video, self.live_control,
-                       self.end_effector, self.postop, self.telemetry, self.settings):
+                       self.settings):
             scroller = QScrollArea()
             scroller.setWidgetResizable(True)
             scroller.setFrameShape(QScrollArea.Shape.NoFrame)

@@ -276,7 +276,7 @@ class RobotSimulator(QFrame):
             p.setFont(f3)
             p.drawText(self.rect().adjusted(0, 10, 0, 0),
                        Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop,
-                       "⚠  MOTION LOCKED")
+                       "MOTION LOCKED")
 
         # Home label
         if all(abs(a) < 0.5 for a in self._angles):
