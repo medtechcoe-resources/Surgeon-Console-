@@ -30,8 +30,8 @@ class RobotTelemetryTab(QWidget):
 
     def _build_ui(self):
         main_layout = QHBoxLayout(self)
-        main_layout.setContentsMargins(8, 8, 8, 8)
-        main_layout.setSpacing(8)
+        main_layout.setContentsMargins(16, 16, 16, 16)
+        main_layout.setSpacing(12)
 
         # ── LEFT PANEL: Joint Angles ──────────────────────────────
         left_panel = QWidget()
@@ -51,8 +51,8 @@ class RobotTelemetryTab(QWidget):
             color = joint_colors[i]
             joint_card = CardFrame()
             jc_layout = QVBoxLayout(joint_card)
-            jc_layout.setContentsMargins(10, 8, 10, 8)
-            jc_layout.setSpacing(2)
+            jc_layout.setContentsMargins(14, 12, 14, 12)
+            jc_layout.setSpacing(4)
 
             # Header row: Joint name + value
             header = QHBoxLayout()
@@ -67,14 +67,14 @@ class RobotTelemetryTab(QWidget):
             header.addWidget(dot)
 
             name_lbl = QLabel(f"  Joint {i + 1}")
-            name_lbl.setFont(QFont("Consolas", 9, QFont.Weight.Bold))
+            name_lbl.setFont(QFont("Consolas", 20, QFont.Weight.Bold))
             name_lbl.setStyleSheet(f"color: {C['txt0']}; border: none;")
             header.addWidget(name_lbl)
 
             header.addStretch()
 
             val_lbl = QLabel("0.00°")
-            val_lbl.setFont(QFont("Consolas", 14, QFont.Weight.Bold))
+            val_lbl.setFont(QFont("Consolas", 28, QFont.Weight.Bold))
             val_lbl.setStyleSheet(f"color: {color}; border: none;")
             header.addWidget(val_lbl)
 
@@ -109,17 +109,17 @@ class RobotTelemetryTab(QWidget):
                              ("Z", C["teal"])]:
             pos_card = CardFrame()
             pc_layout = QHBoxLayout(pos_card)
-            pc_layout.setContentsMargins(12, 12, 12, 12)
+            pc_layout.setContentsMargins(16, 16, 16, 16)
 
             axis_lbl = QLabel(f"{axis} :")
-            axis_lbl.setFont(QFont("Consolas", 12, QFont.Weight.Bold))
+            axis_lbl.setFont(QFont("Consolas", 22, QFont.Weight.Bold))
             axis_lbl.setStyleSheet(f"color: {C['txt2']}; border: none;")
             pc_layout.addWidget(axis_lbl)
 
             pc_layout.addStretch()
 
             val_lbl = QLabel("0.00 mm")
-            val_lbl.setFont(QFont("Consolas", 18, QFont.Weight.Bold))
+            val_lbl.setFont(QFont("Consolas", 32, QFont.Weight.Bold))
             val_lbl.setStyleSheet(f"color: {color}; border: none;")
             pc_layout.addWidget(val_lbl)
 
@@ -132,10 +132,10 @@ class RobotTelemetryTab(QWidget):
 
         ee_card = CardFrame()
         ee_layout = QHBoxLayout(ee_card)
-        ee_layout.setContentsMargins(12, 12, 12, 12)
+        ee_layout.setContentsMargins(16, 16, 16, 16)
 
         ee_lbl = QLabel("ROTATION :")
-        ee_lbl.setFont(QFont("Consolas", 10, QFont.Weight.Bold))
+        ee_lbl.setFont(QFont("Consolas", 20, QFont.Weight.Bold))
         ee_lbl.setStyleSheet(f"color: {C['txt2']}; border: none;")
         ee_layout.addWidget(ee_lbl)
 
@@ -143,7 +143,7 @@ class RobotTelemetryTab(QWidget):
 
         self._ee_rotation = QLabel("0.00°")
         self._ee_rotation.setFont(
-            QFont("Consolas", 18, QFont.Weight.Bold))
+            QFont("Consolas", 32, QFont.Weight.Bold))
         self._ee_rotation.setStyleSheet(
             f"color: {C['green']}; border: none;")
         ee_layout.addWidget(self._ee_rotation)
@@ -153,10 +153,10 @@ class RobotTelemetryTab(QWidget):
         # Reach
         reach_card = CardFrame()
         rc_layout = QHBoxLayout(reach_card)
-        rc_layout.setContentsMargins(12, 12, 12, 12)
+        rc_layout.setContentsMargins(16, 16, 16, 16)
 
         reach_lbl = QLabel("REACH :")
-        reach_lbl.setFont(QFont("Consolas", 10, QFont.Weight.Bold))
+        reach_lbl.setFont(QFont("Consolas", 20, QFont.Weight.Bold))
         reach_lbl.setStyleSheet(f"color: {C['txt2']}; border: none;")
         rc_layout.addWidget(reach_lbl)
 
@@ -164,7 +164,7 @@ class RobotTelemetryTab(QWidget):
 
         self._reach_value = QLabel("0.00 mm")
         self._reach_value.setFont(
-            QFont("Consolas", 18, QFont.Weight.Bold))
+            QFont("Consolas", 32, QFont.Weight.Bold))
         self._reach_value.setStyleSheet(
             f"color: {C['cyan']}; border: none;")
         rc_layout.addWidget(self._reach_value)
@@ -214,13 +214,13 @@ class RobotTelemetryTab(QWidget):
         rate_layout.setContentsMargins(12, 10, 12, 10)
 
         rate_lbl = QLabel("100 updates / min")
-        rate_lbl.setFont(QFont("Consolas", 10, QFont.Weight.Bold))
+        rate_lbl.setFont(QFont("Consolas", 20, QFont.Weight.Bold))
         rate_lbl.setStyleSheet(f"color: {C['teal']}; border: none;")
         rate_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         rate_layout.addWidget(rate_lbl)
 
         freq_lbl = QLabel("≈ 600ms interval")
-        freq_lbl.setFont(QFont("Consolas", 8))
+        freq_lbl.setFont(QFont("Consolas", 16))
         freq_lbl.setStyleSheet(f"color: {C['txt2']}; border: none;")
         freq_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         rate_layout.addWidget(freq_lbl)
@@ -230,7 +230,7 @@ class RobotTelemetryTab(QWidget):
         # Telemetry counter
         self._update_count = 0
         self._counter_lbl = QLabel("Updates: 0")
-        self._counter_lbl.setFont(QFont("Consolas", 8))
+        self._counter_lbl.setFont(QFont("Consolas", 16))
         self._counter_lbl.setStyleSheet(
             f"color: {C['txt2']}; background-color: {C['bg0']};")
         right_layout.addWidget(self._counter_lbl)
@@ -247,12 +247,12 @@ class RobotTelemetryTab(QWidget):
         layout.setSpacing(4)
 
         lbl = QLabel(label)
-        lbl.setFont(QFont("Consolas", 8, QFont.Weight.Bold))
+        lbl.setFont(QFont("Consolas", 18, QFont.Weight.Bold))
         lbl.setStyleSheet(f"color: {C['txt1']}; border: none;")
         layout.addWidget(lbl)
 
         val = QLabel(value)
-        val.setFont(QFont("Consolas", 14, QFont.Weight.Bold))
+        val.setFont(QFont("Consolas", 28, QFont.Weight.Bold))
         val.setStyleSheet(f"color: {color}; border: none;")
         layout.addWidget(val)
 

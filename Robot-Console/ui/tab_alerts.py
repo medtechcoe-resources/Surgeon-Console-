@@ -28,14 +28,14 @@ class AlertsTab(QWidget):
 
     def _build_ui(self):
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(8, 8, 8, 8)
-        main_layout.setSpacing(6)
+        main_layout.setContentsMargins(16, 16, 16, 16)
+        main_layout.setSpacing(10)
 
         # ── Header Row ────────────────────────────────────────────
         header_layout = QHBoxLayout()
 
         title = QLabel("SYSTEM ALERTS & SAFETY LOG")
-        title.setFont(QFont("Consolas", 13, QFont.Weight.Bold))
+        title.setFont(QFont("Consolas", 30, QFont.Weight.Bold))
         title.setStyleSheet(
             f"color: {C['txt0']}; background-color: {C['bg0']};")
         header_layout.addWidget(title)
@@ -54,12 +54,12 @@ class AlertsTab(QWidget):
                               ("WARNING", C["amber"]),
                               ("INFO", C["cyan"])]:
             badge = QPushButton(label)
-            badge.setFont(QFont("Consolas", 7, QFont.Weight.Bold))
+            badge.setFont(QFont("Consolas", 16, QFont.Weight.Bold))
             badge.setStyleSheet(f"""
                 QPushButton {{
                     background-color: {color};
                     color: white;
-                    padding: 3px 8px;
+                    padding: 6px 14px;
                     border: none;
                 }}
             """)
@@ -70,12 +70,12 @@ class AlertsTab(QWidget):
 
         # Clear button
         clear_btn = QPushButton("✔  CLEAR ALL")
-        clear_btn.setFont(QFont("Consolas", 9, QFont.Weight.Bold))
+        clear_btn.setFont(QFont("Consolas", 20, QFont.Weight.Bold))
         clear_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: {C['green']};
                 color: white;
-                padding: 6px 12px;
+                padding: 12px 20px;
                 border: none;
             }}
             QPushButton:hover {{
@@ -125,17 +125,17 @@ class AlertsTab(QWidget):
                             ("WARNING", C["amber"]),
                             ("INFO", C["cyan"])]:
             lbl = QLabel(f"{sev}: 0")
-            lbl.setFont(QFont("Consolas", 9, QFont.Weight.Bold))
+            lbl.setFont(QFont("Consolas", 18, QFont.Weight.Bold))
             lbl.setStyleSheet(f"color: {color}; border: none;")
             fl.addWidget(lbl)
-            fl.addSpacing(20)
+            fl.addSpacing(30)
             self._summary_labels[sev] = lbl
 
         fl.addStretch()
 
         self._total_label = QLabel("TOTAL: 0")
         self._total_label.setFont(
-            QFont("Consolas", 9, QFont.Weight.Bold))
+            QFont("Consolas", 18, QFont.Weight.Bold))
         self._total_label.setStyleSheet(
             f"color: {C['txt0']}; border: none;")
         fl.addWidget(self._total_label)

@@ -18,6 +18,9 @@ from screens.preop_planning import PreopPlanningScreen
 from screens.live_video import LiveVideoScreen
 from screens.live_control import LiveControlScreen
 from screens.settings import SettingsScreen
+from screens.comm_center import CommCenterScreen
+
+from shared_networking.connection_manager import ConnectionManager
 
 
 class AetherConsole(QMainWindow):
@@ -54,9 +57,10 @@ class AetherConsole(QMainWindow):
         self.live_video = LiveVideoScreen()
         self.live_control = LiveControlScreen()
         self.settings = SettingsScreen()
+        self.comm_center = CommCenterScreen()
 
         for screen in (self.preop, self.live_video, self.live_control,
-                       self.settings):
+                       self.settings, self.comm_center):
             scroller = QScrollArea()
             scroller.setWidgetResizable(True)
             scroller.setFrameShape(QScrollArea.Shape.NoFrame)
@@ -76,6 +80,28 @@ class AetherConsole(QMainWindow):
         # Wire theme toggle (header.theme_btn is a _ThemeButton that repaints itself;
         # ThemeManager broadcasts the change to all subscribed widgets)
         self.header.theme_btn.clicked.connect(ThemeManager.instance().toggle)
+
+        # ── Networking Setup ──────────────────────────────────────
+        self._conn_manager = ConnectionManager(
+            client_name="surgeon_console",
+            publish_topics=["patient_vitals"],
+            subscribe_topics=[
+                "robot_telemetry", "alerts",
+                "connection_status", "system_status",
+            ],
+        )
+        self._conn_manager.enable_auto_reconnect(True)
+
+        # Wire Comm Center to connection manager
+        self.comm_center.set_connection_manager(self._conn_manager)
+
+        # Auto-connect to broker on startup
+        self._conn_manager.connect_to_broker()
+
+    def closeEvent(self, event):
+        """Clean up networking on window close."""
+        self._conn_manager.cleanup()
+        event.accept()
 
 
 def main():

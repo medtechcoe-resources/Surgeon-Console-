@@ -2,6 +2,7 @@
 #  ROBOT CONSOLE — REUSABLE WIDGETS
 #  Qt equivalents of the Surgeon Console's tkinter widget helpers:
 #  CardFrame, SectionHeader, StatusBadge, SparklineWidget, etc.
+#  Scaled for 3440×1440 ultrawide display.
 # ═══════════════════════════════════════════════════════════════════
 
 from PyQt6.QtCore import Qt, QRectF
@@ -42,20 +43,20 @@ class SectionHeader(QWidget):
         color = color or C["cyan"]
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 10, 0, 4)
+        layout.setContentsMargins(0, 12, 0, 6)
         layout.setSpacing(0)
 
         self.setStyleSheet(f"background-color: {C['bg0']};")
 
         # Colored accent bar
         bar = QFrame()
-        bar.setFixedWidth(3)
+        bar.setFixedWidth(4)
         bar.setStyleSheet(f"background-color: {color};")
         layout.addWidget(bar)
 
         # Label
         lbl = QLabel(f"  {text}")
-        lbl.setFont(QFont("Consolas", 8, QFont.Weight.Bold))
+        lbl.setFont(QFont("Consolas", 22, QFont.Weight.Bold))
         lbl.setStyleSheet(f"color: {color}; background-color: {C['bg0']};")
         layout.addWidget(lbl)
 
@@ -71,13 +72,13 @@ class StatusBadge(QLabel):
 
     def __init__(self, text: str, color: str, parent=None):
         super().__init__(text, parent)
-        self.setFont(QFont("Consolas", 8, QFont.Weight.Bold))
+        self.setFont(QFont("Consolas", 18, QFont.Weight.Bold))
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.set_color(color)
 
     def set_color(self, color: str):
         self.setStyleSheet(f"""
-            padding: 4px 8px;
+            padding: 8px 16px;
             background-color: {color};
             color: white;
         """)
@@ -94,7 +95,7 @@ class StatusBadge(QLabel):
 class StatusIndicator(QWidget):
     """A small colored dot indicator (green / amber / red)."""
 
-    def __init__(self, color: str = None, size: int = 10, parent=None):
+    def __init__(self, color: str = None, size: int = 14, parent=None):
         super().__init__(parent)
         self._color = QColor(color or C["green"])
         self._size = size
@@ -123,7 +124,7 @@ class StatusIndicator(QWidget):
 class SparklineWidget(QWidget):
     """A mini scrolling line chart for real-time data visualisation."""
 
-    def __init__(self, color: str, width: int = 120, height: int = 30,
+    def __init__(self, color: str, width: int = 200, height: int = 50,
                  parent=None):
         super().__init__(parent)
         self._color = QColor(color)
@@ -179,25 +180,25 @@ class MetricCard(CardFrame):
         color = color or C["cyan"]
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 10, 12, 10)
-        layout.setSpacing(2)
+        layout.setContentsMargins(16, 14, 16, 14)
+        layout.setSpacing(4)
 
         # Label
         lbl = QLabel(label)
-        lbl.setFont(QFont("Consolas", 8, QFont.Weight.Bold))
+        lbl.setFont(QFont("Consolas", 18, QFont.Weight.Bold))
         lbl.setStyleSheet(f"color: {C['txt1']}; border: none;")
         layout.addWidget(lbl)
 
         # Value
         self._value_label = QLabel(value)
-        self._value_label.setFont(QFont("Consolas", 22, QFont.Weight.Bold))
+        self._value_label.setFont(QFont("Consolas", 34, QFont.Weight.Bold))
         self._value_label.setStyleSheet(f"color: {color}; border: none;")
         layout.addWidget(self._value_label)
 
         # Unit
         if unit:
             unit_lbl = QLabel(unit)
-            unit_lbl.setFont(QFont("Consolas", 8))
+            unit_lbl.setFont(QFont("Consolas", 16))
             unit_lbl.setStyleSheet(f"color: {C['txt2']}; border: none;")
             layout.addWidget(unit_lbl)
 
@@ -225,32 +226,32 @@ class VitalCard(CardFrame):
         self._color = color
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 10, 12, 10)
-        layout.setSpacing(2)
+        layout.setContentsMargins(16, 14, 16, 14)
+        layout.setSpacing(4)
 
         # Label
         lbl = QLabel(label)
-        lbl.setFont(QFont("Consolas", 10, QFont.Weight.Bold))
+        lbl.setFont(QFont("Consolas", 22, QFont.Weight.Bold))
         lbl.setStyleSheet(f"color: {C['txt1']}; border: none;")
         layout.addWidget(lbl)
 
         # Value
         self._value_label = QLabel("---")
-        self._value_label.setFont(QFont("Consolas", 32, QFont.Weight.Bold))
+        self._value_label.setFont(QFont("Consolas", 48, QFont.Weight.Bold))
         self._value_label.setStyleSheet(f"color: {color}; border: none;")
         self._value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self._value_label)
 
         # Unit
         unit_lbl = QLabel(unit)
-        unit_lbl.setFont(QFont("Consolas", 9))
+        unit_lbl.setFont(QFont("Consolas", 18))
         unit_lbl.setStyleSheet(f"color: {C['txt2']}; border: none;")
         unit_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(unit_lbl)
 
         # Status
         self._status_label = QLabel("")
-        self._status_label.setFont(QFont("Consolas", 9, QFont.Weight.Bold))
+        self._status_label.setFont(QFont("Consolas", 18, QFont.Weight.Bold))
         self._status_label.setStyleSheet(
             f"color: {C['green']}; border: none;")
         self._status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -260,7 +261,7 @@ class VitalCard(CardFrame):
         self._sparkline = None
         if show_sparkline:
             self._sparkline = SparklineWidget(color=color, width=200,
-                                              height=36)
+                                              height=50)
             layout.addWidget(self._sparkline)
 
     def set_value(self, value: str):
@@ -290,20 +291,20 @@ class KeyValueRow(QWidget):
         value_color = value_color or C["txt0"]
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(10, 3, 10, 3)
-        layout.setSpacing(4)
+        layout.setContentsMargins(14, 6, 14, 6)
+        layout.setSpacing(8)
 
         self.setStyleSheet(f"background-color: {C['bg2']};")
 
         key_lbl = QLabel(key)
-        key_lbl.setFont(QFont("Consolas", 8))
+        key_lbl.setFont(QFont("Consolas", 18))
         key_lbl.setStyleSheet(f"color: {C['txt2']};")
         layout.addWidget(key_lbl)
 
         layout.addStretch()
 
         self._value_label = QLabel(value)
-        self._value_label.setFont(QFont("Consolas", 8, QFont.Weight.Bold))
+        self._value_label.setFont(QFont("Consolas", 18, QFont.Weight.Bold))
         self._value_label.setStyleSheet(f"color: {value_color};")
         layout.addWidget(self._value_label)
 

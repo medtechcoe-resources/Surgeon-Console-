@@ -38,10 +38,25 @@ C = {
 }
 
 # ─── NETWORK CONFIGURATION ───────────────────────────────────────
-TCP_HOST = "127.0.0.1"
-TCP_PORT = 5000
-HEARTBEAT_INTERVAL_MS = 3000       # Send heartbeat every 3s
-RECONNECT_DELAY_MS = 5000          # Wait 5s before reconnect attempt
+# Import from shared config; local fallbacks for backwards compatibility
+try:
+    import sys, os
+    _proj_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj_root not in sys.path:
+        sys.path.insert(0, _proj_root)
+    from shared_networking.config import (
+        BROKER_HOST as TCP_HOST,
+        BROKER_PORT as TCP_PORT,
+        HEARTBEAT_INTERVAL_S,
+        RECONNECT_INTERVAL_S,
+    )
+    HEARTBEAT_INTERVAL_MS = int(HEARTBEAT_INTERVAL_S * 1000)
+    RECONNECT_DELAY_MS = int(RECONNECT_INTERVAL_S * 1000)
+except ImportError:
+    TCP_HOST = "127.0.0.1"
+    TCP_PORT = 5000
+    HEARTBEAT_INTERVAL_MS = 2000
+    RECONNECT_DELAY_MS = 3000
 MAX_RECONNECT_ATTEMPTS = 10
 
 # ─── TELEMETRY CONFIGURATION ─────────────────────────────────────
@@ -75,6 +90,6 @@ ALERT_TEMPLATES = [
 ]
 
 # ─── WINDOW CONFIGURATION ────────────────────────────────────────
-WINDOW_WIDTH = 2560
-WINDOW_HEIGHT = 1080
+WINDOW_WIDTH = 3440
+WINDOW_HEIGHT = 1440
 WINDOW_TITLE = "ROBOT CONSOLE  //  MEDROBOT OS v4.2"

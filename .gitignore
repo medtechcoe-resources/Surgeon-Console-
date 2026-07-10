@@ -1,3 +1,6 @@
 __pycache__/
 *.pt
 {screens,widgets,styles}/
+shared_networking/__pycache__/
+Observer-Screen/__pycache__/
+Observer-Screen/ui/__pycache__/

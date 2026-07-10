@@ -1,26 +1,24 @@
 # ═══════════════════════════════════════════════════════════════════
-#  ROBOT CONSOLE — APPLICATION ENTRY POINT
+#  OBSERVER SCREEN — STANDALONE MONITORING APPLICATION
 # ═══════════════════════════════════════════════════════════════════
 
 import sys
 import os
 
-# Ensure project root is on sys.path for the shared networking package
-_project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
+# Add parent directory of Observer-Screen to path to import shared modules
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from PyQt6.QtWidgets import QApplication
 from ui.main_window import MainWindow
+from styles import generate_stylesheet
 
 
 def main():
     app = QApplication(sys.argv)
+    app.setApplicationName("Clinical Observer Screen")
 
-    # Set application metadata
-    app.setApplicationName("Robot Console")
-    app.setOrganizationName("MedRobot")
-    app.setApplicationVersion("1.0")
+    # Apply stylesheet
+    app.setStyleSheet(generate_stylesheet())
 
     window = MainWindow()
     window.show()

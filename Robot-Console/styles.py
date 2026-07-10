@@ -1,13 +1,15 @@
 # ═══════════════════════════════════════════════════════════════════
 #  ROBOT CONSOLE — QSS STYLESHEET GENERATOR
 #  Translates the clinical color system into Qt stylesheets.
+#  Scaled for 3440×1440 ultrawide display.
 # ═══════════════════════════════════════════════════════════════════
 
 from constants import C
 
 
 def generate_stylesheet() -> str:
-    """Generate a complete QSS stylesheet matching the Surgeon Console design."""
+    """Generate a complete QSS stylesheet matching the Surgeon Console design.
+    Font sizes and paddings scaled for 3440×1440."""
     return f"""
     /* ── Global ───────────────────────────────────────────────── */
     QMainWindow {{
@@ -31,9 +33,9 @@ def generate_stylesheet() -> str:
         background-color: {C['bg2']};
         color: {C['txt2']};
         font-family: "Consolas";
-        font-size: 10px;
+        font-size: 18px;
         font-weight: bold;
-        padding: 10px 22px;
+        padding: 16px 32px;
         margin-right: 2px;
         border: none;
         border-bottom: 3px solid transparent;
@@ -51,13 +53,13 @@ def generate_stylesheet() -> str:
     /* ── Scroll Bars ──────────────────────────────────────────── */
     QScrollBar:vertical {{
         background: {C['bg1']};
-        width: 10px;
+        width: 14px;
         border: none;
         margin: 0;
     }}
     QScrollBar::handle:vertical {{
         background: {C['border']};
-        border-radius: 4px;
+        border-radius: 6px;
         min-height: 30px;
     }}
     QScrollBar::handle:vertical:hover {{
@@ -68,12 +70,12 @@ def generate_stylesheet() -> str:
     }}
     QScrollBar:horizontal {{
         background: {C['bg1']};
-        height: 10px;
+        height: 14px;
         border: none;
     }}
     QScrollBar::handle:horizontal {{
         background: {C['border']};
-        border-radius: 4px;
+        border-radius: 6px;
         min-width: 30px;
     }}
     QScrollBar::handle:horizontal:hover {{
@@ -89,21 +91,21 @@ def generate_stylesheet() -> str:
         border: 1px solid {C['border']};
         gridline-color: {C['bg3']};
         font-family: "Consolas";
-        font-size: 9px;
+        font-size: 18px;
         selection-background-color: {C['cyan_bg']};
         selection-color: {C['cyan']};
     }}
     QTableWidget::item {{
-        padding: 6px 8px;
+        padding: 10px 14px;
         border-bottom: 1px solid {C['bg3']};
     }}
     QHeaderView::section {{
         background-color: {C['bg3']};
         color: {C['cyan']};
         font-family: "Consolas";
-        font-size: 9px;
+        font-size: 18px;
         font-weight: bold;
-        padding: 8px 8px;
+        padding: 10px 14px;
         border: none;
         border-right: 1px solid {C['border']};
         border-bottom: 1px solid {C['border']};
@@ -115,8 +117,8 @@ def generate_stylesheet() -> str:
         color: {C['txt0']};
         border: 1px solid {C['border']};
         font-family: "Consolas";
-        font-size: 9px;
-        padding: 6px;
+        font-size: 18px;
+        padding: 10px;
         selection-background-color: {C['cyan_bg']};
         selection-color: {C['cyan']};
     }}
@@ -127,8 +129,8 @@ def generate_stylesheet() -> str:
         color: {C['txt0']};
         border: 1px solid {C['border']};
         font-family: "Consolas";
-        font-size: 10px;
-        padding: 6px 8px;
+        font-size: 20px;
+        padding: 10px 14px;
     }}
     QLineEdit:focus {{
         border: 1px solid {C['cyan']};
@@ -137,9 +139,9 @@ def generate_stylesheet() -> str:
     /* ── Push Buttons ─────────────────────────────────────────── */
     QPushButton {{
         font-family: "Consolas";
-        font-size: 9px;
+        font-size: 20px;
         font-weight: bold;
-        padding: 8px 14px;
+        padding: 14px 24px;
         border: none;
         border-radius: 0px;
     }}
@@ -152,8 +154,8 @@ def generate_stylesheet() -> str:
         background-color: {C['txt0']};
         color: white;
         font-family: "Consolas";
-        font-size: 9px;
-        padding: 5px 8px;
+        font-size: 16px;
+        padding: 8px 12px;
         border: none;
     }}
 

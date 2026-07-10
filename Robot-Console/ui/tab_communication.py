@@ -39,18 +39,18 @@ class CommunicationTab(QWidget):
 
     def _build_ui(self):
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(8, 8, 8, 8)
-        main_layout.setSpacing(6)
+        main_layout.setContentsMargins(16, 16, 16, 16)
+        main_layout.setSpacing(10)
 
         # ── TOP ROW: Connection Panel + Data Transmission ─────────
         top_layout = QHBoxLayout()
-        top_layout.setSpacing(6)
+        top_layout.setSpacing(12)
 
         # Connection Panel
         conn_widget = QWidget()
         conn_layout = QVBoxLayout(conn_widget)
         conn_layout.setContentsMargins(0, 0, 0, 0)
-        conn_layout.setSpacing(4)
+        conn_layout.setSpacing(8)
 
         conn_layout.addWidget(SectionHeader(
             "CONNECTION PANEL", C["cyan"]))
@@ -62,12 +62,12 @@ class CommunicationTab(QWidget):
 
         # Status indicator row
         status_row = QHBoxLayout()
-        self._conn_indicator = StatusIndicator(C["red"], size=12)
+        self._conn_indicator = StatusIndicator(C["red"], size=18)
         status_row.addWidget(self._conn_indicator)
 
         self._conn_status_label = QLabel("DISCONNECTED")
         self._conn_status_label.setFont(
-            QFont("Consolas", 11, QFont.Weight.Bold))
+            QFont("Consolas", 22, QFont.Weight.Bold))
         self._conn_status_label.setStyleSheet(
             f"color: {C['red']}; border: none;")
         status_row.addWidget(self._conn_status_label)
@@ -77,25 +77,25 @@ class CommunicationTab(QWidget):
         # Host input
         host_row = QHBoxLayout()
         host_lbl = QLabel("HOST :")
-        host_lbl.setFont(QFont("Consolas", 8, QFont.Weight.Bold))
+        host_lbl.setFont(QFont("Consolas", 18, QFont.Weight.Bold))
         host_lbl.setStyleSheet(f"color: {C['txt1']};")
         host_row.addWidget(host_lbl)
 
         self._host_input = QLineEdit(TCP_HOST)
-        self._host_input.setFont(QFont("Consolas", 10))
+        self._host_input.setFont(QFont("Consolas", 20))
         host_row.addWidget(self._host_input)
         cc_layout.addLayout(host_row)
 
         # Port input
         port_row = QHBoxLayout()
         port_lbl = QLabel("PORT :")
-        port_lbl.setFont(QFont("Consolas", 8, QFont.Weight.Bold))
+        port_lbl.setFont(QFont("Consolas", 18, QFont.Weight.Bold))
         port_lbl.setStyleSheet(f"color: {C['txt1']};")
         port_row.addWidget(port_lbl)
 
         self._port_input = QLineEdit(str(TCP_PORT))
-        self._port_input.setFont(QFont("Consolas", 10))
-        self._port_input.setFixedWidth(80)
+        self._port_input.setFont(QFont("Consolas", 20))
+        self._port_input.setFixedWidth(120)
         port_row.addWidget(self._port_input)
         port_row.addStretch()
         cc_layout.addLayout(port_row)
@@ -104,12 +104,12 @@ class CommunicationTab(QWidget):
         btn_row = QHBoxLayout()
 
         self._connect_btn = QPushButton("▶  CONNECT")
-        self._connect_btn.setFont(QFont("Consolas", 9, QFont.Weight.Bold))
+        self._connect_btn.setFont(QFont("Consolas", 20, QFont.Weight.Bold))
         self._connect_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: {C['green']};
                 color: white;
-                padding: 10px 16px;
+                padding: 16px 28px;
             }}
             QPushButton:hover {{
                 background-color: {C['teal']};
@@ -121,12 +121,12 @@ class CommunicationTab(QWidget):
 
         self._disconnect_btn = QPushButton("⏹  DISCONNECT")
         self._disconnect_btn.setFont(
-            QFont("Consolas", 9, QFont.Weight.Bold))
+            QFont("Consolas", 20, QFont.Weight.Bold))
         self._disconnect_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: {C['red']};
                 color: white;
-                padding: 10px 16px;
+                padding: 16px 28px;
             }}
             QPushButton:hover {{
                 background-color: #c0392b;
@@ -142,12 +142,12 @@ class CommunicationTab(QWidget):
         # Reconnect button
         self._reconnect_btn = QPushButton("↻  RECONNECT")
         self._reconnect_btn.setFont(
-            QFont("Consolas", 9, QFont.Weight.Bold))
+            QFont("Consolas", 20, QFont.Weight.Bold))
         self._reconnect_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: {C['amber']};
                 color: white;
-                padding: 8px 16px;
+                padding: 14px 24px;
             }}
             QPushButton:hover {{
                 background-color: #b8740a;
@@ -171,7 +171,7 @@ class CommunicationTab(QWidget):
             "DATA TRANSMISSION", C["teal"]))
 
         data_grid = QGridLayout()
-        data_grid.setSpacing(4)
+        data_grid.setSpacing(8)
 
         self._sent_count = MetricCard(
             "SENT MESSAGES", "0", "packets", C["cyan"])
@@ -208,17 +208,17 @@ class CommunicationTab(QWidget):
         sw_layout.setSpacing(2)
 
         sent_hdr = QLabel("  LAST SENT JSON")
-        sent_hdr.setFont(QFont("Consolas", 8, QFont.Weight.Bold))
+        sent_hdr.setFont(QFont("Consolas", 18, QFont.Weight.Bold))
         sent_hdr.setStyleSheet(
             f"color: {C['cyan']}; background-color: {C['bg3']};"
-            f" padding: 4px;")
+            f" padding: 8px;")
         sw_layout.addWidget(sent_hdr)
 
         self._sent_json = QTextEdit()
         self._sent_json.setReadOnly(True)
-        self._sent_json.setFont(QFont("Consolas", 9))
+        self._sent_json.setFont(QFont("Consolas", 18))
         self._sent_json.setPlaceholderText("No data sent yet...")
-        self._sent_json.setMaximumHeight(200)
+        self._sent_json.setMaximumHeight(300)
         sw_layout.addWidget(self._sent_json)
 
         json_layout.addWidget(sent_widget, stretch=1)
@@ -230,17 +230,17 @@ class CommunicationTab(QWidget):
         rw_layout.setSpacing(2)
 
         recv_hdr = QLabel("  LAST RECEIVED JSON")
-        recv_hdr.setFont(QFont("Consolas", 8, QFont.Weight.Bold))
+        recv_hdr.setFont(QFont("Consolas", 18, QFont.Weight.Bold))
         recv_hdr.setStyleSheet(
             f"color: {C['green']}; background-color: {C['bg3']};"
-            f" padding: 4px;")
+            f" padding: 8px;")
         rw_layout.addWidget(recv_hdr)
 
         self._recv_json = QTextEdit()
         self._recv_json.setReadOnly(True)
-        self._recv_json.setFont(QFont("Consolas", 9))
+        self._recv_json.setFont(QFont("Consolas", 18))
         self._recv_json.setPlaceholderText("No data received yet...")
-        self._recv_json.setMaximumHeight(200)
+        self._recv_json.setMaximumHeight(300)
         rw_layout.addWidget(self._recv_json)
 
         json_layout.addWidget(recv_widget, stretch=1)

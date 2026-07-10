@@ -60,6 +60,21 @@ def _draw_gear(p, cx, cy, c):
         p.drawLine(int(x1), int(y1), int(x2), int(y2))
 
 
+def _draw_signal(p, cx, cy, c):
+    """Comm Center: signal / antenna icon."""
+    p.setPen(QPen(c, 1.5))
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    # Vertical antenna mast
+    p.drawLine(int(cx), int(cy + 8), int(cx), int(cy - 4))
+    # Signal arcs (3 concentric)
+    for i, r in enumerate([5, 9, 13]):
+        p.drawArc(int(cx - r), int(cy - 4 - r), r * 2, r * 2,
+                  30 * 16, 120 * 16)
+    # Base dot
+    p.setBrush(c)
+    p.drawEllipse(int(cx - 2), int(cy - 6), 4, 4)
+
+
 # ─── Icon Tab Button ────────────────────────────────────────────────────────
 
 class _IconTabButton(QPushButton):
@@ -150,6 +165,7 @@ class NavBar(QWidget):
         ("Live Video",   _draw_camera),
         ("Live Control", _draw_joystick),
         ("Settings",     _draw_gear),
+        ("Comm Center",  _draw_signal),
     ]
 
     def __init__(self, parent=None):

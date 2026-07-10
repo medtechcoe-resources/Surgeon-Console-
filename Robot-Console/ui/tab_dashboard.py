@@ -28,15 +28,15 @@ class DashboardTab(QWidget):
 
     def _build_ui(self):
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(8, 8, 8, 8)
-        main_layout.setSpacing(6)
+        main_layout.setContentsMargins(16, 16, 16, 16)
+        main_layout.setSpacing(10)
 
         # ── Section: Status Overview ──────────────────────────────
         main_layout.addWidget(SectionHeader(
             "STATUS OVERVIEW", C["cyan"]))
 
         status_grid = QGridLayout()
-        status_grid.setSpacing(6)
+        status_grid.setSpacing(10)
 
         # Robot Status Card
         self._robot_status_card = self._build_status_card(
@@ -77,7 +77,7 @@ class DashboardTab(QWidget):
             "DATA TRANSFER", C["teal"]))
 
         transfer_grid = QGridLayout()
-        transfer_grid.setSpacing(6)
+        transfer_grid.setSpacing(10)
 
         # Data Transfer Rate Card
         self._rate_card = MetricCard(
@@ -104,7 +104,7 @@ class DashboardTab(QWidget):
             "TIMING", C["amber"]))
 
         timing_grid = QGridLayout()
-        timing_grid.setSpacing(6)
+        timing_grid.setSpacing(10)
 
         self._last_sent_card = MetricCard(
             "LAST SENT", "---", "", C["amber"])
@@ -133,16 +133,16 @@ class DashboardTab(QWidget):
         card = CardFrame()
         layout = QVBoxLayout(card)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        layout.setSpacing(2)
 
         # Title bar
         title_bar = QWidget()
         title_bar.setStyleSheet(f"background-color: {C['bg3']};")
         tb_layout = QHBoxLayout(title_bar)
-        tb_layout.setContentsMargins(10, 8, 10, 8)
+        tb_layout.setContentsMargins(16, 12, 16, 12)
 
         title_lbl = QLabel(title)
-        title_lbl.setFont(QFont("Consolas", 8, QFont.Weight.Bold))
+        title_lbl.setFont(QFont("Consolas", 20, QFont.Weight.Bold))
         title_lbl.setStyleSheet(f"color: {C['cyan']};")
         tb_layout.addWidget(title_lbl)
 

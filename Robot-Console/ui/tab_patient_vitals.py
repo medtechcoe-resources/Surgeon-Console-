@@ -34,8 +34,8 @@ class PatientVitalsTab(QWidget):
 
     def _build_ui(self):
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(8, 8, 8, 8)
-        main_layout.setSpacing(6)
+        main_layout.setContentsMargins(16, 16, 16, 16)
+        main_layout.setSpacing(10)
 
         # ── Header ────────────────────────────────────────────────
         main_layout.addWidget(SectionHeader(
@@ -44,7 +44,7 @@ class PatientVitalsTab(QWidget):
 
         # ── Top Row: 6 Monitoring Cards ───────────────────────────
         top_grid = QGridLayout()
-        top_grid.setSpacing(6)
+        top_grid.setSpacing(10)
 
         vitals_cfg = [
             ("HR",      "bpm",  C["pink"],   True),
@@ -67,7 +67,7 @@ class PatientVitalsTab(QWidget):
 
         # ── Middle Row: Vital Trends + Clinical Status ────────────
         mid_layout = QHBoxLayout()
-        mid_layout.setSpacing(6)
+        mid_layout.setSpacing(10)
 
         # Left: Vital Trends Graph
         trends_widget = QWidget()
@@ -79,7 +79,7 @@ class PatientVitalsTab(QWidget):
 
         trends_card = CardFrame()
         tc_layout = QVBoxLayout(trends_card)
-        tc_layout.setContentsMargins(6, 6, 6, 6)
+        tc_layout.setContentsMargins(14, 12, 14, 12)
 
         self._trends_canvas = VitalTrendsCanvas()
         tc_layout.addWidget(self._trends_canvas)
@@ -110,10 +110,10 @@ class PatientVitalsTab(QWidget):
 
         # Right: Clinical Status
         clinical_widget = QWidget()
-        clinical_widget.setFixedWidth(380)
+        clinical_widget.setFixedWidth(550)
         cl_layout = QVBoxLayout(clinical_widget)
         cl_layout.setContentsMargins(0, 0, 0, 0)
-        cl_layout.setSpacing(4)
+        cl_layout.setSpacing(8)
 
         cl_layout.addWidget(SectionHeader("CLINICAL STATUS", C["green"]))
 
@@ -131,16 +131,16 @@ class PatientVitalsTab(QWidget):
         for title, status, color, desc in clinical_data:
             ci = CardFrame()
             ci_layout = QVBoxLayout(ci)
-            ci_layout.setContentsMargins(10, 8, 10, 8)
+            ci_layout.setContentsMargins(16, 12, 16, 12)
 
             top_row = QHBoxLayout()
             title_lbl = QLabel(title)
-            title_lbl.setFont(QFont("Consolas", 9, QFont.Weight.Bold))
+            title_lbl.setFont(QFont("Consolas", 20, QFont.Weight.Bold))
             title_lbl.setStyleSheet(f"color: {C['txt0']}; border: none;")
             top_row.addWidget(title_lbl)
 
             status_lbl = QLabel(status)
-            status_lbl.setFont(QFont("Consolas", 9, QFont.Weight.Bold))
+            status_lbl.setFont(QFont("Consolas", 20, QFont.Weight.Bold))
             status_lbl.setStyleSheet(f"color: {color}; border: none;")
             status_lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
             top_row.addWidget(status_lbl)
@@ -148,7 +148,7 @@ class PatientVitalsTab(QWidget):
             ci_layout.addLayout(top_row)
 
             desc_lbl = QLabel(desc)
-            desc_lbl.setFont(QFont("Consolas", 7))
+            desc_lbl.setFont(QFont("Consolas", 16))
             desc_lbl.setStyleSheet(f"color: {C['txt2']}; border: none;")
             ci_layout.addWidget(desc_lbl)
 
@@ -168,22 +168,22 @@ class PatientVitalsTab(QWidget):
 
         ecg_card = CardFrame()
         ecg_layout = QHBoxLayout(ecg_card)
-        ecg_layout.setContentsMargins(12, 8, 12, 8)
+        ecg_layout.setContentsMargins(18, 12, 18, 12)
 
         ecg_lbl = QLabel("ECG")
-        ecg_lbl.setFont(QFont("Consolas", 10, QFont.Weight.Bold))
+        ecg_lbl.setFont(QFont("Consolas", 22, QFont.Weight.Bold))
         ecg_lbl.setStyleSheet(f"color: {C['txt1']}; border: none;")
         ecg_layout.addWidget(ecg_lbl)
 
         self._ecg_value = QLabel("---")
-        self._ecg_value.setFont(QFont("Consolas", 14, QFont.Weight.Bold))
+        self._ecg_value.setFont(QFont("Consolas", 28, QFont.Weight.Bold))
         self._ecg_value.setStyleSheet(f"color: {C['pink']}; border: none;")
         ecg_layout.addWidget(self._ecg_value)
 
         ecg_layout.addStretch()
 
         self._ecg_status = QLabel("WAITING FOR DATA")
-        self._ecg_status.setFont(QFont("Consolas", 9, QFont.Weight.Bold))
+        self._ecg_status.setFont(QFont("Consolas", 20, QFont.Weight.Bold))
         self._ecg_status.setStyleSheet(f"color: {C['txt2']}; border: none;")
         ecg_layout.addWidget(self._ecg_status)
 
