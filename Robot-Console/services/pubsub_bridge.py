@@ -1,15 +1,20 @@
 # ═══════════════════════════════════════════════════════════════════
 #  ROBOT CONSOLE — PUB-SUB BRIDGE SERVICE
-#  Adapts the existing Robot Console services to the shared
-#  pub-sub networking system. Publishes robot_telemetry, alerts,
-#  and connection_status. Subscribes to patient_vitals.
+#  Connects to the shared pub-sub broker.
+#
+#  Publishes:   connection_status
+#  Subscribes:  robot_telemetry, patient_vitals, alerts
+#
+#  Data is now produced by the standalone Data Generator backend.
+#  This bridge receives all three streams and emits Qt signals for
+#  the UI tabs to consume without modification.
 # ═══════════════════════════════════════════════════════════════════
 
 import sys
 import os
 from datetime import datetime
 
-from PyQt6.QtCore import QObject, QTimer, pyqtSignal
+from PyQt6.QtCore import QObject, pyqtSignal
 
 # Ensure the project root is on sys.path for the shared networking package
 _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -21,37 +26,42 @@ from shared_networking.config import BROKER_HOST, BROKER_PORT
 
 
 class PubSubBridge(QObject):
-    """Bridge between Robot Console services and the pub-sub broker.
+    """Bridge between the Robot Console UI and the pub-sub broker.
 
     Publishes:
-        - robot_telemetry (every 1 second)
-        - alerts (on generation)
         - connection_status (on connect/disconnect)
 
     Subscribes:
-        - patient_vitals
+        - robot_telemetry   (produced by Data Generator)
+        - patient_vitals    (produced by Data Generator)
+        - alerts            (produced by Data Generator)
 
-    Emits Qt signals for received data so existing tabs can
+    Emits Qt signals for received data so existing UI tabs can
     consume it without modification.
     """
 
-    # Signals for UI tabs to consume
-    vitals_received = pyqtSignal(dict)        # patient vitals data
-    connected = pyqtSignal()
-    disconnected = pyqtSignal()
-    error_occurred = pyqtSignal(str)
-    log_message = pyqtSignal(str, str)        # (level, message)
-    stats_updated = pyqtSignal(dict)
-    data_received = pyqtSignal(dict)          # raw message for comm tab
-    data_sent = pyqtSignal(dict)              # raw message for comm tab
+    # ── Signals for UI tabs ────────────────────────────────────────
+    vitals_received    = pyqtSignal(dict)   # patient vitals data
+    telemetry_received = pyqtSignal(dict)   # robot telemetry data
+    alert_received     = pyqtSignal(dict)   # alert entry
+    connected          = pyqtSignal()
+    disconnected       = pyqtSignal()
+    error_occurred     = pyqtSignal(str)
+    log_message        = pyqtSignal(str, str)   # (level, message)
+    stats_updated      = pyqtSignal(dict)
+    data_received      = pyqtSignal(dict)       # raw message for comm tab
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, username: str = "", role: str = "",
+                 session_id: str = ""):
         super().__init__(parent)
 
         self._conn_manager = ConnectionManager(
             client_name="robot_console",
-            publish_topics=["robot_telemetry", "alerts", "connection_status"],
-            subscribe_topics=["patient_vitals"],
+            publish_topics=["connection_status"],
+            subscribe_topics=["robot_telemetry", "patient_vitals", "alerts"],
+            username=username,
+            role=role,
+            session_id=session_id,
             parent=self,
         )
         self._conn_manager.enable_auto_reconnect(True)
@@ -64,16 +74,7 @@ class PubSubBridge(QObject):
         self._conn_manager.stats_updated.connect(self.stats_updated)
         self._conn_manager.message_received.connect(self._on_message)
 
-        # Telemetry publish timer (1 second)
-        self._telemetry_timer = QTimer(self)
-        self._telemetry_timer.setInterval(1000)
-        self._telemetry_timer.timeout.connect(self._publish_telemetry)
-
-        # Cached data from generators
-        self._current_telemetry = None
-        self._telemetry_publish_count = 0
-
-    # ─── Properties ───────────────────────────────────────────────
+    # ── Properties ────────────────────────────────────────────────
 
     @property
     def is_connected(self) -> bool:
@@ -87,15 +88,14 @@ class PubSubBridge(QObject):
     def port(self) -> int:
         return self._conn_manager.port
 
-    # ─── Public API ───────────────────────────────────────────────
+    # ── Public API ────────────────────────────────────────────────
 
     def start(self):
-        """Connect to broker and start publishing."""
+        """Connect to broker."""
         self._conn_manager.connect_to_broker()
 
     def stop(self):
-        """Stop publishing and disconnect."""
-        self._telemetry_timer.stop()
+        """Disconnect from broker."""
         self._conn_manager.cleanup()
 
     def connect_to_server(self, host: str = None, port: int = None):
@@ -104,100 +104,82 @@ class PubSubBridge(QObject):
 
     def disconnect_from_server(self):
         """Disconnect from broker (compatible with comm tab interface)."""
-        self._telemetry_timer.stop()
         self._conn_manager.disconnect_from_broker()
 
     def reconnect(self):
         """Reconnect to broker."""
         self.disconnect_from_server()
+        from PyQt6.QtCore import QTimer
         QTimer.singleShot(2000, lambda: self.connect_to_server())
-
-    def update_telemetry(self, telemetry):
-        """Cache the latest telemetry data for periodic publishing."""
-        self._current_telemetry = telemetry
-
-    def publish_alert(self, alert):
-        """Publish an alert to the broker."""
-        if not self._conn_manager.is_connected:
-            return
-        self._conn_manager.publish("alerts", alert.to_dict())
 
     def get_stats(self) -> dict:
         """Return current connection statistics."""
         return self._conn_manager.get_stats()
 
-    # ─── Signal Handlers ──────────────────────────────────────────
+    # ── Signal Handlers ───────────────────────────────────────────
 
     def _on_connected(self):
         self.connected.emit()
-        self._telemetry_timer.start()
-
-        # Publish connection status
+        # Announce presence on the bus
         self._conn_manager.publish("connection_status", {
-            "event": "robot_console_connected",
+            "event":       "robot_console_connected",
             "client_name": "robot_console",
-            "timestamp": datetime.now().isoformat(),
+            "timestamp":   datetime.now().isoformat(),
         })
 
     def _on_disconnected(self):
-        self._telemetry_timer.stop()
         self.disconnected.emit()
 
     def _on_message(self, topic: str, message: dict):
         """Route incoming pub-sub messages to the appropriate handler."""
-        if topic == "patient_vitals":
-            # Convert to the format expected by the existing PatientVitalsTab
-            payload = message.get("payload", {})
-            vitals_msg = {
-                "type": "VITALS_DATA",
-                "timestamp": message.get("timestamp", ""),
-                "payload": {
-                    "hr": payload.get("heart_rate", 0),
-                    "spo2": payload.get("spo2", 0),
-                    "nibp_s": self._parse_bp(payload.get(
-                        "blood_pressure", "0/0"), 0),
-                    "nibp_d": self._parse_bp(payload.get(
-                        "blood_pressure", "0/0"), 1),
-                    "etco2": 38.0,  # Default EtCO2
-                    "rr": payload.get("respiration", 0),
-                    "temp": payload.get("temperature", 0),
-                    "ecg_status": payload.get("ecg_status", "---"),
-                },
-            }
-            self.vitals_received.emit(vitals_msg)
-            self.data_received.emit(vitals_msg)
+        payload = message.get("payload", {})
 
-    def _publish_telemetry(self):
-        """Publish cached telemetry data to the broker."""
-        if not self._conn_manager.is_connected or \
-                self._current_telemetry is None:
-            return
+        if topic == "robot_telemetry":
+            self._handle_telemetry(message, payload)
 
-        telemetry = self._current_telemetry
-        payload = telemetry.to_dict()
+        elif topic == "patient_vitals":
+            self._handle_vitals(message, payload)
 
-        # Add extra fields required by the spec
-        import psutil
-        try:
-            cpu = psutil.cpu_percent(interval=None)
-        except Exception:
-            cpu = 0.0
+        elif topic == "alerts":
+            self._handle_alert(message, payload)
 
-        payload["velocity"] = 0.0
-        payload["force"] = 0.0
-        payload["motion_enabled"] = telemetry.motion_state != "IDLE"
-        payload["emergency_status"] = "CLEAR"
-        payload["cpu_usage"] = cpu
-        payload["latency"] = 0.84
+    # ── Per-topic handlers ────────────────────────────────────────
 
-        self._conn_manager.publish("robot_telemetry", payload)
-        self._telemetry_publish_count += 1
+    def _handle_telemetry(self, message: dict, payload: dict):
+        """Forward robot telemetry to the telemetry tab."""
+        self.telemetry_received.emit(payload)
+        self.data_received.emit({
+            "type":      "ROBOT_TELEMETRY",
+            "timestamp": message.get("timestamp", ""),
+            "payload":   payload,
+        })
 
-        # Emit for comm tab
-        self.data_sent.emit({
-            "type": "ROBOT_TELEMETRY",
-            "timestamp": payload.get("timestamp", ""),
-            "payload": payload,
+    def _handle_vitals(self, message: dict, payload: dict):
+        """Convert vitals payload and forward to patient vitals tab."""
+        vitals_msg = {
+            "type":      "VITALS_DATA",
+            "timestamp": message.get("timestamp", ""),
+            "payload": {
+                "hr":     payload.get("heart_rate", 0),
+                "spo2":   payload.get("spo2", 0),
+                "nibp_s": self._parse_bp(payload.get("blood_pressure", "0/0"), 0),
+                "nibp_d": self._parse_bp(payload.get("blood_pressure", "0/0"), 1),
+                "etco2":  payload.get("etco2", 38.0),
+                "rr":     payload.get("respiration", 0),
+                "temp":   payload.get("temperature", 0),
+                "ecg_status": payload.get("ecg_status", "---"),
+            },
+        }
+        self.vitals_received.emit(vitals_msg)
+        self.data_received.emit(vitals_msg)
+
+    def _handle_alert(self, message: dict, payload: dict):
+        """Forward alert to the alerts tab."""
+        self.alert_received.emit(payload)
+        self.data_received.emit({
+            "type":      "ALERT",
+            "timestamp": message.get("timestamp", ""),
+            "payload":   payload,
         })
 
     @staticmethod

@@ -4,9 +4,21 @@
 #  Import from here instead of hardcoding values.
 # ═══════════════════════════════════════════════════════════════════
 
+import os
+
+_THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# ─── Application ─────────────────────────────────────────────────
+APP_VERSION = "4.2"
+SYSTEM_NAME = "Aether Surgical Console"
+
 # ─── Broker / Server ─────────────────────────────────────────────
 BROKER_HOST = "127.0.0.1"
 BROKER_PORT = 5000
+
+# ─── Security ────────────────────────────────────────────────────
+ENCRYPTION_KEY_PATH = os.path.join(_THIS_DIR, "aether.key")
+CREDENTIALS_PATH = os.path.join(_THIS_DIR, "credentials.json")
 
 # ─── Heartbeat ───────────────────────────────────────────────────
 HEARTBEAT_INTERVAL_S = 2          # Send heartbeat every 2 seconds

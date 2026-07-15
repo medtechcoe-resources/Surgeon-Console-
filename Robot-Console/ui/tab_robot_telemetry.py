@@ -21,7 +21,8 @@ from models.data_models import RobotTelemetry
 
 class RobotTelemetryTab(QWidget):
     """Robot Telemetry tab — displays 6-DOF joint angles, tool position,
-    end effector data, and system status, all locally generated."""
+    end effector data, and system status.  Data is received from the
+    Data Generator backend via the pub-sub broker."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -320,3 +321,78 @@ class RobotTelemetryTab(QWidget):
         rs = telemetry.robot_status
         rs_color = C["green"] if rs == "ACTIVE" else C["txt2"]
         self._robot_status_badge.set_text_and_color(rs, rs_color)
+
+    def update_telemetry_from_dict(self, payload: dict):
+        """Update all telemetry displays from a raw broker payload dict.
+
+        Called when telemetry arrives via the pub-sub bridge from the
+        Data Generator backend (no local ``RobotTelemetry`` object).
+        """
+        import math
+
+        self._update_count += 1
+        self._counter_lbl.setText(f"Updates: {self._update_count}")
+
+        ja = payload.get("joint_angles", {})
+        tp = payload.get("tool_position", {})
+
+        # Joint angles
+        for i in range(6):
+            key = f"j{i + 1}"
+            angle = ja.get(key, 0.0)
+            w = self._joint_widgets.get(key)
+            if w:
+                w["value"].setText(f"{angle:.2f}°")
+                # Build a minimal sparkline history from the single new value
+                # (we don't have history from the broker — approximate it)
+                spark: "SparklineWidget" = w["sparkline"]
+                if hasattr(spark, "_data"):
+                    spark._data.append(angle)
+                    if len(spark._data) > 50:
+                        spark._data.pop(0)
+                    spark.update()
+
+        # Tool position
+        self._pos_cards["X"].setText(f"{tp.get('x', 0.0):.2f} mm")
+        self._pos_cards["Y"].setText(f"{tp.get('y', 0.0):.2f} mm")
+        self._pos_cards["Z"].setText(f"{tp.get('z', 0.0):.2f} mm")
+
+        # EE Rotation
+        self._ee_rotation.setText(
+            f"{payload.get('end_effector_rotation', 0.0):.2f}°")
+
+        # Reach
+        x = tp.get("x", 0.0)
+        y = tp.get("y", 0.0)
+        z = tp.get("z", 0.0)
+        reach = math.sqrt(x ** 2 + y ** 2 + z ** 2)
+        self._reach_value.setText(f"{reach:.2f} mm")
+
+        # Motion state
+        ms = payload.get("motion_state", "IDLE")
+        ms_color = (C["green"] if ms == "MOVING"
+                    else C["amber"] if ms == "REPOSITIONING"
+                    else C["cyan"])
+        self._motion_card["value"].setText(ms)
+        self._motion_card["value"].setStyleSheet(
+            f"color: {ms_color}; border: none;")
+
+        # Servo status
+        ss = payload.get("servo_status", "NOMINAL")
+        ss_color = C["green"] if ss == "NOMINAL" else C["amber"]
+        self._servo_card["value"].setText(ss)
+        self._servo_card["value"].setStyleSheet(
+            f"color: {ss_color}; border: none;")
+
+        # Torque status
+        ts = payload.get("torque_status", "NOMINAL")
+        ts_color = C["green"] if ts == "NOMINAL" else C["amber"]
+        self._torque_card["value"].setText(ts)
+        self._torque_card["value"].setStyleSheet(
+            f"color: {ts_color}; border: none;")
+
+        # Robot status badge
+        rs = payload.get("robot_status", "ACTIVE")
+        rs_color = C["green"] if rs == "ACTIVE" else C["txt2"]
+        self._robot_status_badge.set_text_and_color(rs, rs_color)
+

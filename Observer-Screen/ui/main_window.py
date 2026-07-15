@@ -32,8 +32,13 @@ from ui.widgets import (
 class MainWindow(QMainWindow):
     """Observer Screen Main Window — 8-panel grid dashboard."""
 
-    def __init__(self):
+    def __init__(self, username: str = "", role: str = "user",
+                 session_id: str = ""):
         super().__init__()
+        self._username = username
+        self._role = role
+        self._session_id = session_id
+
         self.setWindowTitle(WINDOW_TITLE)
         self.resize(WINDOW_WIDTH, WINDOW_HEIGHT)
 
@@ -48,6 +53,9 @@ class MainWindow(QMainWindow):
                 "system_status",
                 "connection_status",
             ],
+            username=username,
+            role=role,
+            session_id=session_id,
             parent=self,
         )
         self._conn_mgr.enable_auto_reconnect(True)

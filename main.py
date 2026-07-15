@@ -21,11 +21,21 @@ from screens.settings import SettingsScreen
 from screens.comm_center import CommCenterScreen
 
 from shared_networking.connection_manager import ConnectionManager
+from shared_networking.encryption import EncryptionManager
+from shared_networking.authentication import AuthManager
+from shared_networking.login_dialog import LoginDialog
+from shared_networking.config import ENCRYPTION_KEY_PATH
 
 
 class AetherConsole(QMainWindow):
-    def __init__(self):
+    def __init__(self, username: str = "", role: str = "user",
+                 session_id: str = "", auth_manager: AuthManager = None):
         super().__init__()
+        self._username = username
+        self._role = role
+        self._session_id = session_id
+        self._auth_manager = auth_manager
+
         self.setWindowTitle("AETHER SURGICAL ROBOTIC CONSOLE — REV 4.2")
         self.resize(3440, 1440)
 
@@ -56,7 +66,8 @@ class AetherConsole(QMainWindow):
         self.preop = PreopPlanningScreen()
         self.live_video = LiveVideoScreen()
         self.live_control = LiveControlScreen()
-        self.settings = SettingsScreen()
+        self.settings = SettingsScreen(
+            username=username, role=role, auth_manager=auth_manager)
         self.comm_center = CommCenterScreen()
 
         for screen in (self.preop, self.live_video, self.live_control,
@@ -84,16 +95,25 @@ class AetherConsole(QMainWindow):
         # ── Networking Setup ──────────────────────────────────────
         self._conn_manager = ConnectionManager(
             client_name="surgeon_console",
-            publish_topics=["patient_vitals"],
+            publish_topics=[],
             subscribe_topics=[
+                "patient_vitals",
                 "robot_telemetry", "alerts",
                 "connection_status", "system_status",
             ],
+            username=username,
+            role=role,
+            session_id=session_id,
         )
         self._conn_manager.enable_auto_reconnect(True)
 
         # Wire Comm Center to connection manager
         self.comm_center.set_connection_manager(self._conn_manager)
+
+        # Wire Settings to connection manager and auth
+        self.settings.set_connection_manager(self._conn_manager)
+        if auth_manager:
+            self.settings.set_auth_context(auth_manager, username, role)
 
         # Auto-connect to broker on startup
         self._conn_manager.connect_to_broker()
@@ -111,7 +131,31 @@ def main():
     tm = ThemeManager.instance()
     tm.apply_initial()
 
-    window = AetherConsole()
+    # ── Initialize Encryption ─────────────────────────────────
+    em = EncryptionManager.instance()
+    if not em.load_key(ENCRYPTION_KEY_PATH):
+        # Auto-generate key if not found
+        EncryptionManager.generate_key(ENCRYPTION_KEY_PATH)
+        em.load_key(ENCRYPTION_KEY_PATH)
+
+    # ── Initialize Authentication ─────────────────────────────
+    auth = AuthManager()
+
+    # ── Show Login Dialog ─────────────────────────────────────
+    login = LoginDialog(
+        title="Surgeon Console — Login",
+        auth_manager=auth,
+    )
+    if login.exec() != LoginDialog.DialogCode.Accepted:
+        sys.exit(0)
+
+    # ── Launch Main Window ────────────────────────────────────
+    window = AetherConsole(
+        username=login.username,
+        role=login.role,
+        session_id=login.session_id,
+        auth_manager=auth,
+    )
     window.showMaximized()
     sys.exit(app.exec())
 

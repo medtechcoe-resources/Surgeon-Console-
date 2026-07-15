@@ -1,7 +1,8 @@
 # ═══════════════════════════════════════════════════════════════════
 #  AETHER CONSOLE — LAUNCH ALL
-#  Convenience script that starts the broker, Surgeon Console,
-#  Robot Console, and Observer Screen as subprocesses.
+#  Convenience script that starts the broker, Data Generator,
+#  Surgeon Console, Robot Console, and Observer Screen as
+#  subprocesses.
 #
 #  Usage:  python launch_all.py
 # ═══════════════════════════════════════════════════════════════════
@@ -24,7 +25,7 @@ def main():
 
     try:
         # 1. Start Broker
-        print("\n  [1/4] Starting Pub-Sub Broker...")
+        print("\n  [1/5] Starting Pub-Sub Broker...")
         broker = subprocess.Popen(
             [sys.executable, os.path.join(PROJECT_ROOT, "broker.py")],
             cwd=PROJECT_ROOT,
@@ -32,8 +33,18 @@ def main():
         processes.append(("Broker", broker))
         time.sleep(1)  # Wait for broker to start
 
-        # 2. Start Surgeon Console
-        print("  [2/4] Starting Surgeon Console...")
+        # 2. Start Data Generator
+        print("  [2/5] Starting Data Generator Backend...")
+        datagen = subprocess.Popen(
+            [sys.executable, os.path.join(
+                PROJECT_ROOT, "Data-Generator", "main.py")],
+            cwd=os.path.join(PROJECT_ROOT, "Data-Generator"),
+        )
+        processes.append(("Data Generator", datagen))
+        time.sleep(1)  # Wait for generator to connect to broker
+
+        # 3. Start Surgeon Console
+        print("  [3/5] Starting Surgeon Console...")
         surgeon = subprocess.Popen(
             [sys.executable, os.path.join(PROJECT_ROOT, "main.py")],
             cwd=PROJECT_ROOT,
@@ -41,8 +52,8 @@ def main():
         processes.append(("Surgeon Console", surgeon))
         time.sleep(0.5)
 
-        # 3. Start Robot Console
-        print("  [3/4] Starting Robot Console...")
+        # 4. Start Robot Console
+        print("  [4/5] Starting Robot Console...")
         robot = subprocess.Popen(
             [sys.executable, os.path.join(
                 PROJECT_ROOT, "Robot-Console", "main.py")],
@@ -51,8 +62,8 @@ def main():
         processes.append(("Robot Console", robot))
         time.sleep(0.5)
 
-        # 4. Start Observer Screen
-        print("  [4/4] Starting Observer Screen...")
+        # 5. Start Observer Screen
+        print("  [5/5] Starting Observer Screen...")
         observer = subprocess.Popen(
             [sys.executable, os.path.join(
                 PROJECT_ROOT, "Observer-Screen", "main.py")],

@@ -2,7 +2,7 @@
 #  AETHER CONSOLE — CONNECTION MANAGER
 #  Manages the TCP socket lifecycle for pub-sub clients.
 #  Handles connect, disconnect, auto-reconnect, heartbeat,
-#  background receive thread, and packet statistics.
+#  background receive thread, packet statistics, and encryption stats.
 # ═══════════════════════════════════════════════════════════════════
 
 import socket
@@ -33,8 +33,8 @@ class ConnectionManager(QObject):
     """Manages TCP connection to the pub-sub broker.
 
     Provides publish/subscribe functionality with automatic reconnect,
-    heartbeat, and packet statistics. All UI-relevant events are
-    emitted as Qt signals for thread-safe updates.
+    heartbeat, packet statistics, and encryption diagnostics.
+    All UI-relevant events are emitted as Qt signals for thread-safe updates.
     """
 
     # ─── Signals ──────────────────────────────────────────────────
@@ -52,11 +52,18 @@ class ConnectionManager(QObject):
     _start_reconnect_sig = pyqtSignal()
 
     def __init__(self, client_name: str, publish_topics: list = None,
-                 subscribe_topics: list = None, parent=None):
+                 subscribe_topics: list = None,
+                 username: str = "", role: str = "",
+                 session_id: str = "", parent=None):
         super().__init__(parent)
         self._client_name = client_name
         self._publish_topics = publish_topics or []
         self._subscribe_topics = subscribe_topics or []
+
+        # Auth context
+        self._username = username
+        self._role = role
+        self._session_id = session_id
 
         self._socket: socket.socket = None
         self._is_connected = False
@@ -136,6 +143,26 @@ class ConnectionManager(QObject):
     def port(self) -> int:
         return self._port
 
+    @property
+    def username(self) -> str:
+        return self._username
+
+    @property
+    def role(self) -> str:
+        return self._role
+
+    @property
+    def session_id(self) -> str:
+        return self._session_id
+
+    # ─── Auth Context ─────────────────────────────────────────────
+
+    def set_auth_context(self, username: str, role: str, session_id: str):
+        """Set authentication context for handshake messages."""
+        self._username = username
+        self._role = role
+        self._session_id = session_id
+
     # ─── Public API ───────────────────────────────────────────────
 
     def connect_to_broker(self, host: str = None, port: int = None):
@@ -162,11 +189,14 @@ class ConnectionManager(QObject):
             self._running = True
             self._connect_time = datetime.now()
 
-            # Send handshake
+            # Send handshake with auth context
             handshake = create_handshake(
                 self._client_name,
                 self._publish_topics,
                 self._subscribe_topics,
+                username=self._username,
+                role=self._role,
+                session_id=self._session_id,
             )
             self._send_raw(handshake)
 
@@ -214,6 +244,14 @@ class ConnectionManager(QObject):
         self._do_disconnect()
         self.log_message.emit("INFO", "Disconnected from broker")
 
+    def restart_connection(self):
+        """Disconnect and reconnect to the broker."""
+        self.log_message.emit("INFO", "Restarting communication...")
+        was_auto = self._auto_reconnect_enabled
+        self.disconnect_from_broker()
+        self._auto_reconnect_enabled = was_auto
+        QTimer.singleShot(1000, lambda: self.connect_to_broker())
+
     def publish(self, topic: str, payload: dict):
         """Publish a message to a topic."""
         if not self._is_connected:
@@ -251,13 +289,18 @@ class ConnectionManager(QObject):
         self._auto_reconnect_enabled = enabled
 
     def get_stats(self) -> dict:
-        """Return current connection statistics."""
+        """Return current connection statistics including encryption info."""
         uptime = "---"
         if self._connect_time and self._is_connected:
             delta = datetime.now() - self._connect_time
             mins, secs = divmod(int(delta.total_seconds()), 60)
             hours, mins = divmod(mins, 60)
             uptime = f"{hours:02d}:{mins:02d}:{secs:02d}"
+
+        # Fetch encryption stats
+        from shared_networking.encryption import EncryptionManager
+        em = EncryptionManager.instance()
+        enc_stats = em.get_stats()
 
         return {
             "is_connected": self._is_connected,
@@ -276,6 +319,15 @@ class ConnectionManager(QObject):
             "uptime": uptime,
             "publish_topics": self._publish_topics,
             "subscribe_topics": self._subscribe_topics,
+            # Auth context
+            "username": self._username,
+            "role": self._role,
+            "session_id": self._session_id,
+            # Encryption
+            "encryption_enabled": enc_stats["encryption_enabled"],
+            "encryption_algorithm": enc_stats["algorithm"],
+            "encryption_errors": enc_stats["encryption_errors"],
+            "decryption_errors": enc_stats["decryption_errors"],
         }
 
     def cleanup(self):

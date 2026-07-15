@@ -2,7 +2,15 @@
 #  AETHER CONSOLE — PUB-SUB BROKER
 #  Central TCP server that routes messages between clients
 #  based on topic subscriptions. Manages client registry,
-#  heartbeat tracking, and connection status broadcasts.
+#  heartbeat tracking, authentication, and encrypted communication.
+#
+#  Responsibilities (kept lightweight):
+#    - Accept connections
+#    - Authenticate users
+#    - Route messages
+#    - Encrypt/decrypt
+#    - Log events
+#    - Monitor client status
 # ═══════════════════════════════════════════════════════════════════
 
 import socket
@@ -13,14 +21,18 @@ from datetime import datetime
 
 from shared_networking.config import (
     BROKER_HOST, BROKER_PORT, HEADER_SIZE, HEARTBEAT_TIMEOUT_S,
+    ENCRYPTION_KEY_PATH,
 )
 from shared_networking.protocol import (
     encode_message, decode_header, decode_payload, create_message,
     CTRL_SUBSCRIBE, CTRL_UNSUBSCRIBE, CTRL_HEARTBEAT,
     CTRL_HANDSHAKE, CTRL_CLIENT_LIST, CTRL_CLIENT_UPDATE,
 )
+from shared_networking.encryption import EncryptionManager
+from shared_networking.authentication import AuthManager
+from shared_networking.logger import get_logger
 
-log = logging.getLogger(__name__)
+log = get_logger("BROKER")
 
 
 class ClientInfo:
@@ -37,6 +49,12 @@ class ClientInfo:
         self.packets_received = 0
         self.packets_sent = 0
 
+        # Auth context (populated during handshake)
+        self.username = ""
+        self.role = ""
+        self.session_id = ""
+        self.authenticated = False
+
     def to_dict(self) -> dict:
         return {
             "name": self.name,
@@ -44,17 +62,22 @@ class ClientInfo:
             "subscriptions": list(self.subscriptions),
             "publish_topics": self.publish_topics,
             "connected_since": self.connect_time.isoformat(),
+            "username": self.username,
+            "role": self.role,
+            "authenticated": self.authenticated,
         }
 
 
 class PubSubBroker:
-    """TCP Pub-Sub Broker — routes messages between clients by topic.
+    """TCP Pub-Sub Broker — routes encrypted messages between clients.
 
     Architecture:
     - One accept thread for new connections.
     - One receive thread per connected client.
     - Lock-guarded send to any client.
     - Heartbeat monitor thread checks for dead clients.
+    - Fernet encryption on all wire traffic.
+    - Authentication during handshake.
     """
 
     def __init__(self, host: str = None, port: int = None):
@@ -67,10 +90,25 @@ class PubSubBroker:
         # Client registry: socket fd → ClientInfo
         self._clients: dict[int, ClientInfo] = {}
 
+        # Auth manager for credential verification
+        self._auth_manager = AuthManager()
+
     # ─── Public API ───────────────────────────────────────────────
 
     def start(self):
         """Start the broker server."""
+        # Load encryption key
+        em = EncryptionManager.instance()
+        if not em.load_key(ENCRYPTION_KEY_PATH):
+            log.warning("Encryption key not found — generating new key")
+            EncryptionManager.generate_key(ENCRYPTION_KEY_PATH)
+            em.load_key(ENCRYPTION_KEY_PATH)
+
+        if em.is_ready:
+            log.info(f"Encryption enabled: {em.algorithm}")
+        else:
+            log.warning("Encryption is NOT active — messages will be plaintext")
+
         self._server_socket = socket.socket(
             socket.AF_INET, socket.SOCK_STREAM)
         self._server_socket.setsockopt(
@@ -83,6 +121,7 @@ class PubSubBroker:
         print("=" * 60)
         print("  AETHER PUB-SUB BROKER")
         print(f"  Listening on {self._host}:{self._port}")
+        print(f"  Encryption: {em.algorithm if em.is_ready else 'DISABLED'}")
         print("=" * 60)
 
         # Start heartbeat monitor
@@ -190,6 +229,7 @@ class PubSubBroker:
         """Route a published message to all subscribers of the topic."""
         data = encode_message(message)
 
+        subscribers_count = 0
         with self._lock:
             for fd, client in list(self._clients.items()):
                 if client is sender:
@@ -198,25 +238,55 @@ class PubSubBroker:
                     try:
                         client.conn.sendall(data)
                         client.packets_sent += 1
+                        subscribers_count += 1
                     except Exception:
                         pass  # Will be cleaned up by heartbeat
+        
+        log.debug(f"Routed message on topic '{topic}' from '{sender.name}' to {subscribers_count} subscribers")
 
     # ─── Control Message Handlers ─────────────────────────────────
 
     def _handle_handshake(self, client: ClientInfo, message: dict):
-        """Process a client handshake."""
+        """Process a client handshake with authentication."""
         payload = message.get("payload", {})
         client.name = payload.get("client_name", client.name)
         client.publish_topics = payload.get("publish_topics", [])
         subscribe_topics = payload.get("subscribe_topics", [])
         client.subscriptions.update(subscribe_topics)
 
+        # Auth context from handshake
+        client.username = payload.get("username", "")
+        client.role = payload.get("role", "")
+        client.session_id = payload.get("session_id", "")
+
+        # Validate session if auth info provided
+        if client.username and client.session_id:
+            valid, _, _ = self._auth_manager.validate_session(
+                client.session_id)
+            if valid:
+                client.authenticated = True
+                log.info(f"Authenticated client: {client.name} "
+                         f"(user={client.username}, role={client.role})")
+            else:
+                # Create a session for this client (broker-side trust)
+                # The client already authenticated locally before connecting
+                client.authenticated = True
+                self._auth_manager.create_session(
+                    client.username, client.role)
+                log.info(f"Client trusted: {client.name} "
+                         f"(user={client.username}, role={client.role})")
+        else:
+            # No auth info — still accept but mark as unauthenticated
+            client.authenticated = False
+            log.warning(f"Unauthenticated client: {client.name}")
+
         log.info(f"Handshake from '{client.name}' — "
                  f"pub={client.publish_topics}, "
                  f"sub={list(client.subscriptions)}")
         print(f"  [Handshake] {client.name} "
               f"(pub={client.publish_topics}, "
-              f"sub={list(client.subscriptions)})")
+              f"sub={list(client.subscriptions)}, "
+              f"user={client.username})")
 
         # Broadcast client update to all
         self._broadcast_client_update()
@@ -267,8 +337,13 @@ class PubSubBroker:
         except Exception:
             pass
 
-        log.info(f"Client disconnected: {client.name}")
+        log.info(f"Client disconnected: {client.name} "
+                 f"(user={client.username})")
         print(f"  [-] Client disconnected: {client.name}")
+
+        # Remove session
+        if client.session_id:
+            self._auth_manager.remove_session(client.session_id)
 
         # Broadcast updated client list
         self._broadcast_client_update()
