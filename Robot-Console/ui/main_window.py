@@ -22,6 +22,7 @@ from networking.tcp_client import TCPClient
 from networking.protocol import MSG_ROBOT_TELEMETRY, MSG_VITALS_DATA, MSG_ALERT
 from services.connection_monitor import ConnectionMonitor
 from services.pubsub_bridge import PubSubBridge
+from services.video_broadcaster import VideoBroadcastService
 from ui.tab_dashboard import DashboardTab
 from ui.tab_patient_vitals import PatientVitalsTab
 from ui.tab_robot_telemetry import RobotTelemetryTab
@@ -65,6 +66,9 @@ class MainWindow(QMainWindow):
         # Pub-Sub Bridge — subscribes to telemetry, vitals, alerts
         self._pubsub = PubSubBridge(
             self, username=username, role=role, session_id=session_id)
+
+        # Dedicated Video Broadcast Service (TCP Server on port 5001)
+        self._video_broadcaster = VideoBroadcastService(self)
 
         # ── Build UI ──────────────────────────────────────────────
         central = QWidget()
@@ -245,14 +249,16 @@ class MainWindow(QMainWindow):
         self._conn_monitor.start()
         # Auto-connect to pub-sub broker to receive data from Data Generator
         self._pubsub.start()
-        # Inject the pub-sub manager into LiveVideoScreen for broadcasting
-        self._live_video_tab.set_connection_manager(self._pubsub)
+        # Start dedicated TCP video broadcasting server (port 5001)
+        self._video_broadcaster.start_server()
+        self._live_video_tab.set_broadcaster(self._video_broadcaster)
 
     def _stop_services(self):
         """Stop all background services."""
         self._conn_monitor.stop()
         self._tcp_client.disconnect_from_server()
         self._pubsub.stop()
+        self._video_broadcaster.stop_server()
 
     # ══════════════════════════════════════════════════════════════
     #  CONNECTION HANDLERS

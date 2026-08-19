@@ -22,6 +22,7 @@ from screens.live_video import LiveVideoScreen
 from screens.live_control import LiveControlScreen
 from screens.settings import SettingsScreen
 from screens.comm_center import CommCenterScreen
+from screens.video_receiver import VideoReceiver
 
 from shared_networking.connection_manager import ConnectionManager
 from shared_networking.database import AetherDatabase
@@ -103,7 +104,6 @@ class AetherConsole(QMainWindow):
                 "patient_vitals",
                 "robot_telemetry", "alerts",
                 "connection_status", "system_status",
-                "video_broadcast",
             ],
             username=username,
             role=role,
@@ -119,8 +119,13 @@ class AetherConsole(QMainWindow):
         if auth_manager:
             self.settings.set_auth_context(auth_manager, username, role)
 
-        # Wire Live Video to connection manager
+        # Wire Live Video to connection manager (legacy compatibility)
         self.live_video.set_connection_manager(self._conn_manager)
+
+        # ── Dedicated Video Stream Receiver (TCP port 5001) ───────
+        self._video_receiver = VideoReceiver(parent=self)
+        self._video_receiver.frame_received.connect(self.live_video.update_frame)
+        self._video_receiver.start()
 
         # Route messages to appropriate screens
         self._conn_manager.message_received.connect(self._on_message_received)
@@ -129,20 +134,11 @@ class AetherConsole(QMainWindow):
         self._conn_manager.connect_to_broker()
 
     def _on_message_received(self, topic: str, payload: dict):
-        if topic == "video_broadcast":
-            import base64
-            from PyQt6.QtGui import QImage
-            try:
-                b64 = payload.get("frame", "")
-                if b64:
-                    data = base64.b64decode(b64)
-                    img = QImage.fromData(data)
-                    self.live_video.update_frame(img)
-            except Exception as e:
-                log.warning(f"Video frame decode error: {e}")
+        pass
 
     def closeEvent(self, event):
-        """Clean up networking on window close."""
+        """Clean up networking and video receiver on window close."""
+        self._video_receiver.stop()
         self._conn_manager.cleanup()
         event.accept()
 

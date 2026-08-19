@@ -888,17 +888,27 @@ class LiveVideoScreen(QWidget):
             self.broadcaster.broadcast_qimage(qimage)
 
     def update_frame(self, qimage):
-        """Called by Surgeon Console when a broadcast frame arrives."""
+        """Display an incoming network video frame (Surgeon Console receive path).
+
+        Surgeon Console is normally receive-only: frames from the Robot Console
+        are displayed here.  The ``video_running`` guard preserves intentional
+        local test/debug playback: if the user has explicitly loaded a local
+        video source on this instance, it takes precedence and network frames
+        are suppressed until the local source stops.
+        """
         if self._paused:
             return
-        # If we have an active local source running, do not let incoming network frames overwrite the canvas
+        # Guard: local playback source takes precedence over incoming network frames.
+        # This is intentional — Surgeon Console is receive-only under normal
+        # operation. If video_running is True, the user has explicitly started
+        # a local test/debug source on this instance.
         if self.pipeline.video_running:
             return
         self.canvas.set_frame(qimage)
         self._frame_count += 1
         self.frame_lbl.setText(f"FRAME {self._frame_count:07d}")
         self.meta_label.setText(
-            f"{qimage.width()}\u00D7{qimage.height()}  \u00B7  H.265"
+            f"{qimage.width()}\u00D7{qimage.height()}  \u00B7  LIVE"
         )
 
     def _on_stats(self, stats):
@@ -949,25 +959,39 @@ class LiveVideoScreen(QWidget):
     # ── Button Handlers ───────────────────────────────────────────────
 
     def set_connection_manager(self, conn_manager):
-        """Inject connection manager for broadcasting."""
-        try:
-            from services.video_broadcaster import VideoBroadcastService
-        except ImportError:
-            import sys
-            import os
-            # If running from main.py in the root (Surgeon Console), services is in Robot-Console/services
-            root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            robot_console_dir = os.path.join(root_dir, "Robot-Console")
-            if robot_console_dir not in sys.path:
-                sys.path.insert(0, robot_console_dir)
-            from services.video_broadcaster import VideoBroadcastService
+        """Deprecated no-op.  Video broadcasting is no longer routed through
+        the pub-sub connection manager.  Use set_broadcaster() instead.
 
-        self.broadcaster = VideoBroadcastService(conn_manager, self)
-        self.broadcaster.fps_updated.connect(self._on_broadcaster_fps)
-        self.broadcaster.status_changed.connect(self._on_status)
+        Kept here so that any remaining call sites do not crash during the
+        migration from the broker-based video path.  Will be removed once
+        all callers have been updated.
+        """
+        # No-op: broadcaster is now a standalone TCP server injected via
+        # set_broadcaster() by Robot Console main_window.py.
+        # Surgeon Console does not need a broadcaster at all.
+
+    def set_broadcaster(self, broadcaster):
+        """Inject the video broadcast service (Robot Console only).
+
+        Called by Robot-Console/ui/main_window.py after creating
+        VideoBroadcastService.  The broadcaster must already have
+        start_server() called before frames will be transmitted.
+        """
+        self.broadcaster = broadcaster
+        if broadcaster is not None:
+            if hasattr(broadcaster, 'fps_updated'):
+                broadcaster.fps_updated.connect(self._on_broadcaster_fps)
+            if hasattr(broadcaster, 'status_changed'):
+                broadcaster.status_changed.connect(self._on_status)
+            if hasattr(broadcaster, 'client_connected'):
+                broadcaster.client_connected.connect(
+                    lambda addr: self._on_status(f"Surgeon Console connected: {addr}"))
+            if hasattr(broadcaster, 'client_disconnected'):
+                broadcaster.client_disconnected.connect(
+                    lambda addr: self._on_status(f"Surgeon Console disconnected: {addr}"))
 
     def _on_broadcaster_fps(self, fps):
-        # Update FPS label if needed, or leave it to YOLO
+        """Update the broadcast FPS label if the broadcaster emits it."""
         pass
 
     def _load_video(self):
@@ -977,9 +1001,8 @@ class LiveVideoScreen(QWidget):
         )
         if path:
             self.pipeline.load_video(path)
-            if self.broadcaster:
-                self.broadcaster._mode = "video"
-                self.broadcaster._source = path
+            # Broadcaster is a TCP server — no source path needed; it receives
+            # QImage frames via broadcast_qimage() called from _on_frame().
             # Visual state: mark as active
             self.btn_load_video.setProperty("active", "true")
             self.btn_load_video.setText("Video Loaded")
@@ -995,8 +1018,8 @@ class LiveVideoScreen(QWidget):
     def _broadcast_camera(self):
         cam_active = self.btn_broadcast_cam.property("active") == "true"
         if cam_active:
-            # Stop camera broadcasting
-            self.pipeline.stop()
+            # Stop camera: release the capture device
+            self.pipeline.stop_video()   # was pipeline.stop() — no such method
             self.btn_broadcast_cam.setProperty("active", "false")
             self.btn_broadcast_cam.setText("Broadcast Camera")
             self._s_camera.set_value("OFF")
@@ -1004,11 +1027,9 @@ class LiveVideoScreen(QWidget):
             self._s_broadcast.set_value("IDLE")
             self._s_broadcast.reset_color()
         else:
-            # Start camera broadcasting
+            # Start camera: YoloPipeline manages capture; broadcaster receives
+            # QImage frames via _on_frame() → broadcast_qimage().
             if self.pipeline.load_camera(0):
-                if self.broadcaster:
-                    self.broadcaster._mode = "camera"
-                    self.broadcaster._source = 0
                 self.btn_broadcast_cam.setProperty("active", "true")
                 self.btn_broadcast_cam.setText("Stop Broadcasting")
                 self._s_camera.set_value("CAM 0")

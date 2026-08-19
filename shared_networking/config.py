@@ -86,3 +86,15 @@ DB_BACKUP_KEEP_COUNT = 5          # Retain the last 5 backups
 # ─── Publish Intervals ──────────────────────────────────────────
 VITALS_PUBLISH_INTERVAL_S = 1.0   # Surgeon Console publishes vitals every 1s
 TELEMETRY_PUBLISH_INTERVAL_S = 1.0  # Robot Console publishes telemetry every 1s
+
+# ─── Dedicated Video Transport (plain TCP — POC, no TLS) ────────
+# Completely separate from the broker (port 5000) so video frames
+# never transit the telemetry/control pub-sub channel.
+# Robot Console runs a TCP server on VIDEO_PORT; Surgeon Console
+# connects as a client.  TLS can be layered on later without any
+# UI or protocol changes.
+VIDEO_HOST         = "127.0.0.1"  # Change to LAN IP for multi-machine deployments
+VIDEO_PORT         = 5001         # Dedicated video TCP port
+VIDEO_JPEG_QUALITY = 75           # JPEG quality 1–100 (75 = good balance)
+VIDEO_FPS_TARGET   = 25           # Target transmit FPS
+VIDEO_MAX_QUEUE    = 2            # Max queued frames before oldest is dropped
