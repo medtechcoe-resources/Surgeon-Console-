@@ -1,5 +1,48 @@
+# ─── Python ──────────────────────────────────────────────────────
 __pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+*.pyd
 *.pt
+
+# ─── Security & Secrets (NEVER commit) ───────────────────────────
+# SQLite database
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# TLS certificates and private keys
+*.crt
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Legacy security files (migrated to SQLite/TLS)
+credentials.json
+aether.key
+
+# ─── Runtime & Reports ──────────────────────────────────────────
+*.log
+*.log.*
+aether.log
+aether.log.*
+vulture_report.txt
+
+
+# ─── IDE ─────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ─── OS ──────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ─── Legacy patterns from original .gitignore ────────────────────
 {screens,widgets,styles}/
 shared_networking/__pycache__/
 Observer-Screen/__pycache__/
